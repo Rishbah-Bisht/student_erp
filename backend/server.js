@@ -68,6 +68,16 @@ mongoose.connect(MONGODB_URI)
 
 const PORT = process.env.PORT || 5005;
 
+// Error Handling Middleware
+app.use((err, req, res, next) => {
+    console.error('GLOBAL ERROR:', err);
+    res.status(err.status || 500).json({
+        success: false,
+        message: err.message || 'Internal Server Error',
+        error: process.env.NODE_ENV === 'development' ? err : {}
+    });
+});
+
 if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`Student Auth Server running on port ${PORT}`);

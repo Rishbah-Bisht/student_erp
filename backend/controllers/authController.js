@@ -280,14 +280,25 @@ exports.resetPassword = async (req, res) => {
 // Complete Setup (First Login)
 exports.completeSetup = async (req, res) => {
     try {
+        console.log('--- completeSetup Debug ---');
+        console.log('User ID:', req.user?.id);
+        console.log('File:', req.file ? {
+            fieldname: req.file.fieldname,
+            originalname: req.file.originalname,
+            path: req.file.path
+        } : 'No file received');
+        console.log('Body:', req.body);
+
         const { newPassword } = req.body;
         const student = await Student.findById(req.user.id);
 
         if (!student) {
+            console.warn('Student not found for ID:', req.user.id);
             return res.status(404).json({ success: false, message: 'Student not found' });
         }
 
         if (!student.isFirstLogin) {
+            console.warn('Setup already completed for student:', student.rollNo);
             return res.status(400).json({ success: false, message: 'Setup already completed' });
         }
 
@@ -304,7 +315,9 @@ exports.completeSetup = async (req, res) => {
         student.profileImage = req.file.path; // Cloudinary URL
         student.isFirstLogin = false;
 
+        console.log('Attempting to save student profile...');
         await student.save();
+        console.log('Student profile saved successfully');
 
         res.json({
             success: true,
@@ -315,7 +328,11 @@ exports.completeSetup = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error in completeSetup:', error);
-        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+        console.error('CRITICAL ERROR in completeSetup:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error: ' + error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
