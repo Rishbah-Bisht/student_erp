@@ -52,3 +52,41 @@ This project is pre-configured for **Vercel**.
 
 - The backend entry point is `api/index.js`.
 - The frontend is built into `frontend/dist/`.
+
+---
+
+## Android App (Capacitor)
+
+This converts the existing React frontend into a native Android app with the same features, using Capacitor.
+
+### 1. Configure API Base URL
+Create `frontend/.env` and set the backend URL:
+```env
+VITE_API_BASE_URL=https://your-domain.com
+```
+The app will automatically append `/api` if it is missing.
+
+### 2. Install Dependencies
+From the repo root:
+```bash
+npm install
+```
+
+### 3. Add Android Project (First Time Only)
+```bash
+cd frontend
+npm run android:add
+```
+
+### 4. Build and Sync
+```bash
+npm run android:build
+```
+
+### 5. Open in Android Studio
+```bash
+npm run android:open
+```
+
+### Notes
+- For local backend access on Android emulator, use `http://10.0.2.2:5005` as `VITE_API_BASE_URL` and enable cleartext traffic in the Android app configuration.
