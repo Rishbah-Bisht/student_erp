@@ -13,5 +13,7 @@ const examResultSchema = new mongoose.Schema({
 
 // Unique per student per exam
 examResultSchema.index({ examId: 1, studentId: 1 }, { unique: true });
+examResultSchema.index({ studentId: 1, uploadedAt: -1 });
+examResultSchema.index({ batchId: 1, examId: 1 });
 
 module.exports = mongoose.model('ExamResult', examResultSchema);

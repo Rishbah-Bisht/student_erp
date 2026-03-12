@@ -12,4 +12,6 @@ const examSchema = new mongoose.Schema({
     status: { type: String, enum: ['scheduled', 'completed', 'cancelled'], default: 'scheduled' }
 }, { timestamps: true });
 
+examSchema.index({ batchId: 1, subject: 1, date: -1 });
+
 module.exports = mongoose.model('Exam', examSchema);

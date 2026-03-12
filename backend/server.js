@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/authRoutes');
 const feeRoutes = require('./routes/feeRoutes');
 const resultRoutes = require('./routes/resultRoutes');
+const { redis } = require('./middleware/cache');
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
         mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        redis: redis ? (redis.status || 'connected') : 'disabled',
         env: {
             MONGODB_URI: process.env.MONGODB_URI ? 'set' : 'missing',
             JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'missing'

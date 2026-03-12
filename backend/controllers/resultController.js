@@ -10,16 +10,51 @@ const calcPercentage = (obtained, total) => ((obtained / total) * 100).toFixed(2
 exports.getStudentResults = async (req, res) => {
     try {
         const studentId = req.user.id;
+        const limit = Math.min(parseInt(req.query.limit || '0', 10), 100);
+        const cursor = req.query.cursor;
+        const usePagination = Number.isFinite(limit) && limit > 0;
+        const subjectFilter = req.query.subject;
 
         // Fetch student to get batch info
-        const student = await Student.findById(studentId).populate('batchId', 'name');
+        const student = await Student.findById(studentId).populate('batchId', 'name').select('batchId');
         const batchName = student && student.batchId ? student.batchId.name : 'N/A';
 
-        // Fetch all results for this student and populate the exam details
-        const results = await ExamResult.find({ studentId })
+        // Fetch paginated or full results for this student
+        const resultQuery = { studentId };
+        if (usePagination && cursor) {
+            if (!mongoose.Types.ObjectId.isValid(cursor)) {
+                return res.status(400).json({ success: false, message: 'Invalid cursor' });
+            }
+            resultQuery._id = { $lt: mongoose.Types.ObjectId.createFromHexString(cursor) };
+        }
+
+        if (subjectFilter && subjectFilter !== 'All') {
+            const examQuery = { subject: subjectFilter };
+            const batchId = student?.batchId?._id || student?.batchId;
+            if (batchId) examQuery.batchId = batchId;
+            const subjectExams = await Exam.find(examQuery).select('_id').lean();
+            const examIds = subjectExams.map(exam => exam._id);
+            if (!examIds.length) {
+                return res.json({
+                    success: true,
+                    results: [],
+                    stats: null,
+                    weakSubjects: [],
+                    studentInfo: { batchName },
+                    nextCursor: null
+                });
+            }
+            resultQuery.examId = { $in: examIds };
+        }
+
+        const results = await ExamResult.find(resultQuery)
             .populate('examId', 'name subject chapter date totalMarks passingMarks')
-            .sort({ uploadedAt: -1 })
+            .sort({ _id: -1 })
+            .limit(usePagination ? limit + 1 : 0)
             .lean();
+
+        const hasMore = usePagination && results.length > limit;
+        if (hasMore) results.pop();
 
         if (!results.length) {
             return res.json({
@@ -27,29 +62,13 @@ exports.getStudentResults = async (req, res) => {
                 results: [],
                 stats: null,
                 weakSubjects: [],
-                studentInfo: { batchName } // Return even if no results
+                studentInfo: { batchName },
+                nextCursor: null
             });
         }
 
-        let totalMarksObtained = 0;
-        let totalMaxMarks = 0;
-        let subjectStats = {};
-
         const formattedResults = results.map(r => {
             const exam = r.examId;
-            if (exam) {
-                totalMarksObtained += r.marksObtained;
-                totalMaxMarks += exam.totalMarks;
-
-                // Aggregate per subject
-                if (!subjectStats[exam.subject]) {
-                    subjectStats[exam.subject] = { obtained: 0, total: 0, tests: 0 };
-                }
-                subjectStats[exam.subject].obtained += r.marksObtained;
-                subjectStats[exam.subject].total += exam.totalMarks;
-                subjectStats[exam.subject].tests += 1;
-            }
-
             return {
                 id: r._id,
                 examName: exam ? exam.name : 'Unknown Exam',
@@ -65,27 +84,64 @@ exports.getStudentResults = async (req, res) => {
             };
         });
 
-        const overallPercentage = totalMaxMarks > 0 ? calcPercentage(totalMarksObtained, totalMaxMarks) : 0;
+        let stats = null;
+        let weakSubjects = [];
 
-        // Calculate weak subjects (average < 60%)
-        const weakSubjects = [];
-        for (const [subject, data] of Object.entries(subjectStats)) {
-            const percent = (data.obtained / data.total) * 100;
-            if (percent < 60) {
-                weakSubjects.push({ subject, percentage: percent.toFixed(2) });
+        if (!usePagination || !cursor) {
+            const statsAgg = await ExamResult.aggregate([
+                { $match: { studentId: mongoose.Types.ObjectId.createFromHexString(studentId.toString()) } },
+                {
+                    $lookup: {
+                        from: 'exams',
+                        localField: 'examId',
+                        foreignField: '_id',
+                        as: 'exam'
+                    }
+                },
+                { $unwind: '$exam' },
+                {
+                    $group: {
+                        _id: '$exam.subject',
+                        obtained: { $sum: '$marksObtained' },
+                        total: { $sum: '$exam.totalMarks' },
+                        tests: { $sum: 1 }
+                    }
+                }
+            ]);
+
+            let totalMarksObtained = 0;
+            let totalMaxMarks = 0;
+            const subjectStats = {};
+            statsAgg.forEach((s) => {
+                totalMarksObtained += s.obtained;
+                totalMaxMarks += s.total;
+                subjectStats[s._id] = { obtained: s.obtained, total: s.total, tests: s.tests };
+            });
+
+            const overallPercentage = totalMaxMarks > 0 ? calcPercentage(totalMarksObtained, totalMaxMarks) : 0;
+            const totalTests = statsAgg.reduce((sum, s) => sum + (s.tests || 0), 0);
+
+            for (const [subject, data] of Object.entries(subjectStats)) {
+                const percent = (data.obtained / data.total) * 100;
+                if (percent < 60) {
+                    weakSubjects.push({ subject, percentage: percent.toFixed(2) });
+                }
             }
+
+            stats = {
+                totalTests,
+                overallPercentage,
+                subjectStats
+            };
         }
 
         res.json({
             success: true,
             results: formattedResults,
-            stats: {
-                totalTests: results.length,
-                overallPercentage,
-                subjectStats
-            },
+            stats,
             weakSubjects,
-            studentInfo: { batchName }
+            studentInfo: { batchName },
+            nextCursor: hasMore ? results[results.length - 1]._id : null
         });
     } catch (error) {
         console.error('Error fetching student results:', error);
@@ -121,7 +177,8 @@ exports.getLeaderboard = async (req, res) => {
                     from: "exams",
                     localField: "examId",
                     foreignField: "_id",
-                    as: "examDetails"
+                    as: "examDetails",
+                    pipeline: [{ $project: { totalMarks: 1, subject: 1 } }]
                 }
             },
             { $unwind: "$examDetails" }
@@ -163,22 +220,53 @@ exports.getLeaderboard = async (req, res) => {
         pipeline.push({ $sort: { averagePercentage: -1 } });
         pipeline.push({ $limit: 10 });
 
-        // 7. Populate Student Data with Batch Info
+        pipeline.push({
+            $lookup: {
+                from: "students",
+                localField: "_id",
+                foreignField: "_id",
+                as: "student",
+                pipeline: [{ $project: { name: 1, rollNo: 1, profileImage: 1, batchId: 1 } }]
+            }
+        });
+        pipeline.push({ $unwind: { path: "$student", preserveNullAndEmptyArrays: true } });
+        pipeline.push({
+            $lookup: {
+                from: "batches",
+                localField: "student.batchId",
+                foreignField: "_id",
+                as: "batch",
+                pipeline: [{ $project: { name: 1 } }]
+            }
+        });
+        pipeline.push({ $unwind: { path: "$batch", preserveNullAndEmptyArrays: true } });
+        pipeline.push({
+            $project: {
+                studentId: "$_id",
+                studentName: "$student.name",
+                rollNo: "$student.rollNo",
+                profileImage: "$student.profileImage",
+                batchName: { $ifNull: ["$batch.name", "N/A"] },
+                totalMarksObtained: 1,
+                totalMaxMarks: 1,
+                testCount: 1,
+                percentage: { $round: ["$averagePercentage", 2] }
+            }
+        });
+
         const topScorers = await ExamResult.aggregate(pipeline);
 
-        const leaderboard = await Promise.all(topScorers.map(async (ts, idx) => {
-            const stu = await Student.findById(ts.studentId).populate('batchId', 'name');
-            return {
-                rank: idx + 1,
-                studentName: stu ? stu.name : 'Unknown Student',
-                rollNo: stu ? stu.rollNo : 'Unknown',
-                profileImage: stu ? stu.profileImage : null,
-                batchName: stu && stu.batchId ? stu.batchId.name : 'N/A',
-                totalMarksObtained: ts.totalMarksObtained,
-                totalMaxMarks: ts.totalMaxMarks,
-                percentage: ts.averagePercentage.toFixed(2),
-                testCount: ts.testCount
-            };
+        const leaderboard = topScorers.map((ts, idx) => ({
+            rank: idx + 1,
+            studentId: ts.studentId,
+            studentName: ts.studentName || 'Unknown Student',
+            rollNo: ts.rollNo || 'Unknown',
+            profileImage: ts.profileImage || null,
+            batchName: ts.batchName || 'N/A',
+            totalMarksObtained: ts.totalMarksObtained,
+            totalMaxMarks: ts.totalMaxMarks,
+            percentage: Number(ts.percentage).toFixed(2),
+            testCount: ts.testCount
         }));
 
         res.json({ success: true, leaderboard });

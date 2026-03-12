@@ -3,8 +3,121 @@ const Batch = require('../models/Batch');
 const Teacher = require('../models/Teacher');
 const Exam = require('../models/Exam');
 const ExamResult = require('../models/ExamResult');
+const Attendance = require('../models/Attendance');
+require('../models/Subject');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { invalidateUserCache } = require('../middleware/cache');
+
+const normalizeDeviceInfo = (payload = {}) => ({
+    platform: String(payload.platform || '').trim(),
+    model: String(payload.model || '').trim(),
+    manufacturer: String(payload.manufacturer || '').trim(),
+    appVersion: String(payload.appVersion || '').trim(),
+    deviceId: String(payload.deviceId || '').trim(),
+    appType: String(payload.appType || '').trim(),
+    packageName: String(payload.packageName || '').trim()
+});
+
+const getActivityWindow = () => {
+    const minutes = parseInt(process.env.ACTIVITY_UPDATE_MINUTES || '5', 10);
+    return Number.isFinite(minutes) && minutes > 0 ? minutes : 5;
+};
+
+const getAttendanceSnapshot = async (studentId) => {
+    const match = { studentId };
+
+    const [rows, subjectRows, recentRows] = await Promise.all([
+        Attendance.aggregate([
+            { $match: match },
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]),
+        Attendance.aggregate([
+            { $match: match },
+            { 
+                $group: { 
+                    _id: '$subjectId', 
+                    present: { $sum: { $cond: [{ $eq: ['$status', 'Present'] }, 1, 0] } },
+                    absent: { $sum: { $cond: [{ $eq: ['$status', 'Absent'] }, 1, 0] } },
+                    late: { $sum: { $cond: [{ $eq: ['$status', 'Late'] }, 1, 0] } },
+                    total: { $sum: 1 }
+                } 
+            },
+            {
+                $lookup: {
+                    from: 'subjects',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'subject'
+                }
+            },
+            { $unwind: '$subject' },
+            {
+                $project: {
+                    subjectId: '$_id',
+                    subjectName: '$subject.name',
+                    subjectCode: '$subject.code',
+                    present: 1,
+                    absent: 1,
+                    late: 1,
+                    total: 1,
+                    percentage: {
+                        $cond: [
+                            { $gt: ['$total', 0] },
+                            { $round: [{ $multiply: [{ $divide: ['$present', '$total'] }, 100] }, 0] },
+                            0
+                        ]
+                    }
+                }
+            }
+        ]),
+        Attendance.find(match)
+            .sort({ attendanceDate: -1, createdAt: -1, _id: -1 })
+            .limit(8)
+            .populate('subjectId', 'name code')
+            .lean()
+    ]);
+
+    const present = rows.find((row) => row._id === 'Present')?.count || 0;
+    const absent = rows.find((row) => row._id === 'Absent')?.count || 0;
+    const late = rows.find((row) => row._id === 'Late')?.count || 0;
+    const total = present + absent + late;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+
+    return {
+        summary: { total, present, absent, late, percentage },
+        subjects: subjectRows,
+        recent: recentRows.map((row) => ({
+            _id: row._id,
+            status: row.status,
+            attendanceDate: row.attendanceDate,
+            subjectId: row.subjectId
+                ? {
+                    _id: row.subjectId._id,
+                    name: row.subjectId.name,
+                    code: row.subjectId.code
+                }
+                : null,
+            subjectName: row.subjectId?.name || ''
+        }))
+    };
+};
+
+exports.getSubjectAttendanceDetail = async (req, res) => {
+    try {
+        const { subjectId } = req.params;
+        const studentId = req.user.id;
+
+        const records = await Attendance.find({ studentId, subjectId })
+            .sort({ attendanceDate: -1 })
+            .lean();
+
+        res.json({ success: true, records });
+    } catch (error) {
+        console.error('Error in getSubjectAttendanceDetail:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
 
 // Add Student (Admin Side)
 exports.addStudent = async (req, res) => {
@@ -68,6 +181,17 @@ exports.studentLogin = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
+        const now = new Date();
+        const portalAccess = student.portalAccess || {};
+        student.portalAccess = {
+            signupStatus: portalAccess.signupStatus || 'yes',
+            signedUpAt: portalAccess.signedUpAt || now,
+            lastLoginAt: now
+        };
+        student.lastActiveAt = now;
+        student.lastAppOpenAt = now;
+        await student.save();
+
         // Generate JWT token
         const payload = {
             id: student._id,
@@ -76,6 +200,8 @@ exports.studentLogin = async (req, res) => {
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+        const needsSetup = student.isFirstLogin || !student.profileImage;
 
         res.json({
             success: true,
@@ -87,11 +213,112 @@ exports.studentLogin = async (req, res) => {
                 rollNo: student.rollNo,
                 class: student.className, // Frontend expects 'class' in its dashboard
                 batch: student.batchId ? student.batchId.name : 'N/A', // Return batch name instead of ID
-                isFirstLogin: student.isFirstLogin
+                isFirstLogin: student.isFirstLogin,
+                profileImage: student.profileImage || null,
+                needsSetup
             }
         });
     } catch (error) {
         console.error('Error in studentLogin:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+};
+
+exports.registerDevice = async (req, res) => {
+    try {
+        const { fcmToken } = req.body || {};
+        if (!fcmToken || !String(fcmToken).trim()) {
+            return res.status(400).json({ success: false, message: 'FCM token is required' });
+        }
+
+        const now = new Date();
+        const token = String(fcmToken).trim();
+        const deviceInfo = normalizeDeviceInfo(req.body);
+
+        await Student.updateOne(
+            { _id: req.user.id },
+            {
+                $addToSet: { deviceTokens: token },
+                $set: {
+                    lastDevice: deviceInfo,
+                    lastAppOpenAt: now,
+                    lastActiveAt: now
+                }
+            }
+        );
+
+        console.info('[student.registerDevice]', {
+            studentId: String(req.user.id),
+            platform: deviceInfo.platform || 'unknown',
+            packageName: deviceInfo.packageName || '',
+            tokenTail: token.slice(-12),
+            registeredAt: now.toISOString()
+        });
+
+        res.json({ success: true, message: 'Device registered', registeredAt: now.toISOString() });
+    } catch (error) {
+        console.error('Error in registerDevice:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+};
+
+exports.trackActivity = async (req, res) => {
+    try {
+        const event = String(req.body?.event || 'heartbeat').toLowerCase();
+        const now = new Date();
+        const update = { $set: { lastActiveAt: now } };
+
+        if (event === 'app_open') {
+            update.$set.lastAppOpenAt = now;
+        }
+
+        const deviceInfo = normalizeDeviceInfo(req.body);
+        const hasDevicePayload = Object.values(deviceInfo).some((val) => val);
+        if (hasDevicePayload) {
+            update.$set.lastDevice = deviceInfo;
+        }
+
+        if (event === 'app_open') {
+            await Student.updateOne({ _id: req.user.id }, update);
+            console.info('[student.trackActivity]', {
+                studentId: String(req.user.id),
+                event,
+                platform: deviceInfo.platform || 'unknown',
+                updated: true,
+                recordedAt: now.toISOString()
+            });
+            return res.json({ success: true, message: 'Activity recorded', updated: true });
+        }
+
+        const minMinutes = getActivityWindow();
+        const threshold = new Date(now.getTime() - minMinutes * 60 * 1000);
+
+        const result = await Student.updateOne(
+            {
+                _id: req.user.id,
+                $or: [
+                    { lastActiveAt: { $lt: threshold } },
+                    { lastActiveAt: { $exists: false } },
+                    { lastActiveAt: null }
+                ]
+            },
+            update
+        );
+
+        const updated = result.modifiedCount > 0;
+        if (updated) {
+            console.info('[student.trackActivity]', {
+                studentId: String(req.user.id),
+                event,
+                platform: deviceInfo.platform || 'unknown',
+                updated,
+                recordedAt: now.toISOString()
+            });
+        }
+
+        res.json({ success: true, message: 'Activity recorded', updated });
+    } catch (error) {
+        console.error('Error in trackActivity:', error);
         res.status(500).json({ success: false, message: 'Server error: ' + error.message });
     }
 };
@@ -241,6 +468,11 @@ exports.getStudentProfile = async (req, res) => {
             overallAverage
         };
 
+        const attendance = await getAttendanceSnapshot(student._id);
+        profileData.attendanceSummary = attendance.summary;
+        profileData.attendanceSubjects = attendance.subjects;
+        profileData.attendanceRecent = attendance.recent;
+
         res.json({ success: true, student: profileData });
     } catch (error) {
         console.error('Error fetching student profile:', error);
@@ -271,6 +503,8 @@ exports.resetPassword = async (req, res) => {
         student.password = newPassword;
         await student.save();
 
+        await invalidateUserCache(student._id.toString());
+
         res.json({ success: true, message: 'Password updated successfully.' });
     } catch (error) {
         console.error('Error in resetPassword:', error);
@@ -297,7 +531,8 @@ exports.completeSetup = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Student not found' });
         }
 
-        if (!student.isFirstLogin) {
+        const needsSetup = student.isFirstLogin || !student.profileImage;
+        if (!needsSetup) {
             console.warn('Setup already completed for student:', student.rollNo);
             return res.status(400).json({ success: false, message: 'Setup already completed' });
         }
@@ -314,17 +549,26 @@ exports.completeSetup = async (req, res) => {
         // Save image path and mark setup as complete
         student.profileImage = req.file.path; // Cloudinary URL
         student.isFirstLogin = false;
+        student.portalAccess = {
+            ...(student.portalAccess || {}),
+            signupStatus: 'yes',
+            signedUpAt: student.portalAccess?.signedUpAt || new Date(),
+            lastLoginAt: student.portalAccess?.lastLoginAt || new Date()
+        };
 
         console.log('Attempting to save student profile...');
         await student.save();
         console.log('Student profile saved successfully');
+
+        await invalidateUserCache(student._id.toString());
 
         res.json({
             success: true,
             message: 'Setup completed successfully',
             student: {
                 profileImage: student.profileImage,
-                isFirstLogin: student.isFirstLogin
+                isFirstLogin: student.isFirstLogin,
+                needsSetup: false
             }
         });
     } catch (error) {
