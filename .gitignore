@@ -4,3 +4,6 @@ dist/
 build/
 .DS_Store
 *.log
+frontend/android/.idea/
+frontend/android/app/google-services.json
+frontend/*.tgz

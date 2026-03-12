@@ -1,47 +1,52 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import StudentLayout from '../components/StudentLayout';
 import { IndianRupee, Clock, CheckCircle2, AlertCircle, FileText, Download, Loader2, Calendar } from 'lucide-react';
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 import api from '../services/api';
+import { useQuery } from '@tanstack/react-query';
+import { getCached, setCached } from '../utils/offlineCache';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { useLanguage } from '../context/LanguageContext';
 
 const StudentFees = () => {
-    const [fees, setFees] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { t } = useLanguage();
     const [stats, setStats] = useState({ totalPaid: 0, pendingDues: 0 });
     const [previewPdf, setPreviewPdf] = useState({ isOpen: false, blobUrl: null, filename: '' });
 
     // Fallback student info from local storage if needed
     const studentInfo = JSON.parse(localStorage.getItem('studentInfo') || '{}');
 
-    console.log(studentInfo)
-
-    const loadFees = useCallback(async () => {
-        try {
-            const { data } = await api.get('/student/fees');
-            if (data.success) {
-                setFees(data.fees);
-
-                // Calculate quick stats
-                let paid = 0;
-                let pending = 0;
-                data.fees.forEach(f => {
-                    paid += (f.amountPaid || 0);
-                    pending += (f.pendingAmount > 0 ? f.pendingAmount : 0);
-                });
-                setStats({ totalPaid: paid, pendingDues: pending });
+    const { data: fees = [], isLoading } = useQuery({
+        queryKey: ['student', 'fees'],
+        queryFn: async () => {
+            try {
+                const { data } = await api.get('/student/fees');
+                if (data.success) {
+                    await setCached('student.fees', data.fees);
+                    return data.fees;
+                }
+                return [];
+            } catch (error) {
+                const cached = await getCached('student.fees');
+                if (cached) return cached;
+                throw error;
             }
-        } catch (error) {
-            console.error('Failed to load fees', error);
-        } finally {
-            setLoading(false);
         }
-    }, []);
+    });
 
     useEffect(() => {
-        loadFees();
-    }, [loadFees]);
+        let paid = 0;
+        let pending = 0;
+        fees.forEach(f => {
+            paid += (f.amountPaid || 0);
+            pending += (f.pendingAmount > 0 ? f.pendingAmount : 0);
+        });
+        setStats({ totalPaid: paid, pendingDues: pending });
+    }, [fees]);
 
     const fmt = n => (n || 0).toLocaleString('en-IN');
 
@@ -320,17 +325,62 @@ const StudentFees = () => {
             setPreviewPdf({ isOpen: true, blobUrl: url, filename: `Receipt_${payment.receiptNo}.pdf` });
         } catch (e) {
             console.error(e);
-            alert("Error generating receipt");
+            alert(t('Error generating receipt'));
         }
     };
 
-    if (loading) {
+    const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+
+    const handleDownloadReceipt = async () => {
+        if (!previewPdf.blobUrl) return;
+
+        // Web (browser) flow
+        if (!Capacitor.isNativePlatform()) {
+            const link = document.createElement('a');
+            link.href = previewPdf.blobUrl;
+            link.download = previewPdf.filename || 'receipt.pdf';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+        }
+
+        // Native Android/iOS flow
+        try {
+            const blob = await fetch(previewPdf.blobUrl).then(r => r.blob());
+            const base64 = await blobToBase64(blob);
+            const base64Data = String(base64).split(',')[1];
+            const path = `receipts/${previewPdf.filename || 'receipt.pdf'}`;
+
+            const saved = await Filesystem.writeFile({
+                path,
+                data: base64Data,
+                directory: Directory.Documents
+            });
+
+            await Share.share({
+                title: t('Fee Receipt'),
+                text: t('Student fee receipt PDF'),
+                url: saved.uri
+            });
+        } catch (err) {
+            console.error(err);
+            alert(t('Unable to save receipt on this device.'));
+        }
+    };
+
+    if (isLoading) {
         return (
             <StudentLayout title="My Fees">
                 <div className="flex h-64 items-center justify-center">
                     <div className="flex flex-col items-center gap-2 text-slate-500">
                         <Loader2 className="animate-spin" size={32} />
-                        <p>Loading fee details...</p>
+                        <p>{t('Loading fee details...')}</p>
                     </div>
                 </div>
             </StudentLayout>
@@ -345,7 +395,7 @@ const StudentFees = () => {
                         <AlertCircle size={24} />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Pending Dues</p>
+                        <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">{t('Pending Dues')}</p>
                         <h3 className="text-2xl font-bold text-slate-900 mt-0.5">₹{fmt(stats.pendingDues)}</h3>
                     </div>
                 </div>
@@ -355,23 +405,23 @@ const StudentFees = () => {
                         <CheckCircle2 size={24} />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Total Paid</p>
+                        <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">{t('Total Paid')}</p>
                         <h3 className="text-2xl font-bold text-slate-900 mt-0.5">₹{fmt(stats.totalPaid)}</h3>
                     </div>
                 </div>
             </div>
 
             <div className="space-y-4">
-                <h3 className="text-lg font-bold text-slate-800">Fee History</h3>
+                <h3 className="text-lg font-bold text-slate-800">{t('Fee History')}</h3>
 
                 {fees.length === 0 ? (
                     <div className="rounded-md bg-white p-8 text-center border border-slate-100 shadow-sm">
                         <div className="mx-auto flex h-16 w-16 items-center justify-center w-full rounded-md bg-slate-50 text-slate-300 mb-4">
                             <FileText size={32} />
                         </div>
-                        <h3 className="text-base font-bold text-slate-700">No Fee Records Found</h3>
+                        <h3 className="text-base font-bold text-slate-700">{t('No Fee Records Found')}</h3>
                         <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
-                            It looks like you don't have any generated bills yet. Please wait for the admin to initiate a billing cycle.
+                            {t("It looks like you don't have any generated bills yet. Please wait for the admin to initiate a billing cycle.")}
                         </p>
                     </div>
                 ) : (
@@ -390,7 +440,7 @@ const StudentFees = () => {
                                     <div>
                                         <h4 className="font-bold text-slate-900">{fee.month} {fee.year}</h4>
                                         <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                                            Status: <span className={`font-semibold uppercase tracking-wider
+                                            {t('Status:')} <span className={`font-semibold uppercase tracking-wider
                                                 ${fee.status === 'paid' ? 'text-emerald-600' :
                                                     fee.status === 'overdue' ? 'text-red-600' : 'text-slate-600'}`}>
                                                 {fee.status}
@@ -400,28 +450,28 @@ const StudentFees = () => {
                                 </div>
                                 <div className="text-right">
                                     <div className="text-xl font-bold text-slate-900">₹{fmt(fee.totalFee)}</div>
-                                    <div className="text-xs text-slate-500 mt-0.5">Total Billed</div>
+                                    <div className="text-xs text-slate-500 mt-0.5">{t('Total Billed')}</div>
                                 </div>
                             </div>
 
                             <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Breakdown */}
                                 <div>
-                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Bill Breakdown</h5>
+                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">{t('Bill Breakdown')}</h5>
                                     <div className="space-y-2 text-sm">
                                         <div className="flex justify-between items-center text-slate-600">
-                                            <span>Monthly Tuition</span>
+                                            <span>{t('Monthly Tuition')}</span>
                                             <span className="font-medium text-slate-900">₹{fmt(fee.monthlyTuitionFee)}</span>
                                         </div>
                                         {fee.registrationFee > 0 && (
                                             <div className="flex justify-between items-center text-slate-600">
-                                                <span>Registration Fee</span>
+                                                <span>{t('Registration Fee')}</span>
                                                 <span className="font-medium text-slate-900">₹{fmt(fee.registrationFee)}</span>
                                             </div>
                                         )}
                                         {fee.fine > 0 && (
                                             <div className="flex justify-between items-center text-red-500">
-                                                <span>Late Fine Penalty</span>
+                                                <span>{t('Late Fine Penalty')}</span>
                                                 <span className="font-medium">₹{fmt(fee.fine)}</span>
                                             </div>
                                         )}
@@ -432,7 +482,7 @@ const StudentFees = () => {
                                             </div>
                                         ))}
                                         <div className="pt-2 mt-2 border-t border-slate-100 flex justify-between items-center font-bold">
-                                            <span className="text-slate-900">Net Payable</span>
+                                            <span className="text-slate-900">{t('Net Payable')}</span>
                                             <span className="text-slate-900">₹{fmt(fee.totalFee)}</span>
                                         </div>
                                     </div>
@@ -440,7 +490,7 @@ const StudentFees = () => {
 
                                 {/* Payments & Receipts */}
                                 <div>
-                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Payment History</h5>
+                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">{t('Payment History')}</h5>
                                     {fee.paymentHistory && fee.paymentHistory.length > 0 ? (
                                         <div className="space-y-3">
                                             {fee.paymentHistory.map((p, i) => (
@@ -452,7 +502,7 @@ const StudentFees = () => {
                                                     <button
                                                         onClick={() => handleViewReceipt(fee, p)}
                                                         className="h-8 w-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-colors"
-                                                        title="Download Receipt"
+                                                        title={t('Download Receipt')}
                                                     >
                                                         <Download size={14} />
                                                     </button>
@@ -460,14 +510,14 @@ const StudentFees = () => {
                                             ))}
                                             {fee.pendingAmount > 0 && (
                                                 <div className="pt-2 text-sm flex justify-between font-bold text-red-600">
-                                                    <span>Remaining Due</span>
+                                                    <span>{t('Remaining Due')}</span>
                                                     <span>₹{fmt(fee.pendingAmount)}</span>
                                                 </div>
                                             )}
                                         </div>
                                     ) : (
                                         <div className="h-full flex items-center text-sm text-slate-500 bg-slate-50 rounded-md p-4 border border-slate-100">
-                                            No payments made yet towards this billing cycle.
+                                            {t('No payments made yet towards this billing cycle.')}
                                         </div>
                                     )}
                                 </div>
@@ -482,12 +532,7 @@ const StudentFees = () => {
                 onClose={() => setPreviewPdf({ ...previewPdf, isOpen: false })}
                 blobUrl={previewPdf.blobUrl}
                 filename={previewPdf.filename}
-                onDownload={() => {
-                    const link = document.createElement('a');
-                    link.href = previewPdf.blobUrl;
-                    link.download = previewPdf.filename;
-                    link.click();
-                }}
+                onDownload={handleDownloadReceipt}
             />
         </StudentLayout>
     );

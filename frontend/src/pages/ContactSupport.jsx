@@ -76,7 +76,7 @@ const ContactSupport = () => {
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="p-4 rounded-md border border-gray-50 bg-gray-50/50 flex items-center gap-4">
-                            <div className="p-3 bg-white rounded-xl text-blue-600 shadow-sm">
+                            <div className="p-3 bg-white rounded-md text-blue-600 shadow-sm">
                                 <Phone size={20} />
                             </div>
                             <div>
@@ -85,7 +85,7 @@ const ContactSupport = () => {
                             </div>
                         </div>
                         <div className="p-4 rounded-md border border-gray-50 bg-gray-50/50 flex items-center gap-4">
-                            <div className="p-3 bg-white rounded-xl text-blue-600 shadow-sm">
+                            <div className="p-3 bg-white rounded-md text-blue-600 shadow-sm">
                                 <Mail size={20} />
                             </div>
                             <div>

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Camera, Lock, CheckCircle2, AlertTriangle, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 const StudentSetup = () => {
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const [step, setStep] = useState(1);
     const [image, setImage] = useState(null);
     const [preview, setPreview] = useState(null);
@@ -21,7 +23,11 @@ const StudentSetup = () => {
             return;
         }
 
-        if (student && student.isFirstLogin === false) {
+        const needsSetup = student.needsSetup !== undefined
+            ? student.needsSetup
+            : (student.isFirstLogin || !student.profileImage);
+
+        if (!needsSetup) {
             navigate('/student/dashboard');
         }
     }, [navigate]);
@@ -30,7 +36,7 @@ const StudentSetup = () => {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 2 * 1024 * 1024) {
-                setError('Image size must be less than 2MB');
+                setError(t('Image size must be less than 2MB'));
                 return;
             }
             setImage(file);
@@ -44,17 +50,17 @@ const StudentSetup = () => {
         setError('');
 
         if (!image) {
-            setError('Please upload a profile picture');
+            setError(t('Please upload a profile picture'));
             return;
         }
 
         if (passwords.newPassword.length < 6) {
-            setError('Password must be at least 6 characters long');
+            setError(t('Password must be at least 6 characters long'));
             return;
         }
 
         if (passwords.newPassword !== passwords.confirmPassword) {
-            setError('Passwords do not match');
+            setError(t('Passwords do not match'));
             return;
         }
 
@@ -73,14 +79,15 @@ const StudentSetup = () => {
                 // Update local storage
                 const studentInfo = JSON.parse(localStorage.getItem('studentInfo') || '{}');
                 studentInfo.isFirstLogin = false;
-                studentInfo.profileImage = res.data.student.profileImage;
+                studentInfo.profileImage = res.data.student?.profileImage || studentInfo.profileImage;
+                studentInfo.needsSetup = false;
                 localStorage.setItem('studentInfo', JSON.stringify(studentInfo));
 
                 setStep(3); // Success step
                 setTimeout(() => navigate('/student/dashboard'), 2000);
             }
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to complete setup');
+            setError(err.response?.data?.message || t('Failed to complete setup'));
         } finally {
             setLoading(false);
         }
@@ -93,10 +100,10 @@ const StudentSetup = () => {
                 <div className="p-10 bg-gray-900 text-white text-center">
                     <div className="flex items-center justify-center gap-3 mb-4">
                         <ShieldCheck className="text-blue-400" size={28} />
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400">Security Activation</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400">{t('Security Activation')}</span>
                     </div>
-                    <h2 className="text-3xl font-black tracking-tight">Setup Portal</h2>
-                    <p className="text-gray-400 text-xs mt-2 font-medium">Verify your identity and secure your workspace.</p>
+                    <h2 className="text-3xl font-black tracking-tight">{t('Setup Portal')}</h2>
+                    <p className="text-gray-400 text-xs mt-2 font-medium">{t('Verify your identity and secure your workspace.')}</p>
                 </div>
 
                 <div className="p-10">
@@ -124,18 +131,18 @@ const StudentSetup = () => {
                                     </label>
                                 </div>
                                 <div className="space-y-2">
-                                    <h3 className="text-xl font-black text-gray-800 tracking-tight">Professional Photo</h3>
+                                    <h3 className="text-xl font-black text-gray-800 tracking-tight">{t('Professional Photo')}</h3>
                                     <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                                        Upload a clear front-facing photo. This will be used for your official ID card and cannot be changed.
+                                        {t('Upload a clear front-facing photo. This will be used for your official ID card and cannot be changed.')}
                                     </p>
                                 </div>
                             </div>
 
                             <button
-                                onClick={() => image ? setStep(2) : setError('Please upload your photo to continue')}
+                                onClick={() => image ? setStep(2) : setError(t('Please upload your photo to continue'))}
                                 className="w-full py-5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-gray-800 transition-all shadow-2xl shadow-gray-200 active:scale-[0.98]"
                             >
-                                Secure My Account
+                                {t('Secure My Account')}
                             </button>
                         </div>
                     )}
@@ -144,7 +151,7 @@ const StudentSetup = () => {
                         <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-right-4">
                             <div className="space-y-5">
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Set New Password</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t('Set New Password')}</label>
                                     <div className="relative">
                                         <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                         <input
@@ -152,12 +159,12 @@ const StudentSetup = () => {
                                             value={passwords.newPassword}
                                             onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
                                             className="w-full pl-14 pr-4 py-5 bg-gray-50 border border-gray-100 rounded-md focus:ring-8 focus:ring-blue-500/5 focus:bg-white focus:border-blue-200 outline-none transition-all text-sm font-bold"
-                                            placeholder="Choose a strong password"
+                                            placeholder={t('Choose a strong password')}
                                         />
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Confirm Identity</label>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t('Confirm Identity')}</label>
                                     <div className="relative">
                                         <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                         <input
@@ -165,7 +172,7 @@ const StudentSetup = () => {
                                             value={passwords.confirmPassword}
                                             onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
                                             className="w-full pl-14 pr-4 py-5 bg-gray-50 border border-gray-100 rounded-md focus:ring-8 focus:ring-blue-500/5 focus:bg-white focus:border-blue-200 outline-none transition-all text-sm font-bold"
-                                            placeholder="Repeat the password"
+                                            placeholder={t('Repeat the password')}
                                         />
                                     </div>
                                 </div>
@@ -176,13 +183,13 @@ const StudentSetup = () => {
                                     type="button" onClick={() => setStep(1)}
                                     className="flex-1 py-5 bg-gray-50 text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-gray-100 transition-all font-bold"
                                 >
-                                    Go Back
+                                    {t('Go Back')}
                                 </button>
                                 <button
                                     type="submit" disabled={loading}
                                     className="flex-[2] py-5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-blue-700 transition-all shadow-2xl shadow-blue-100 disabled:opacity-50 active:scale-[0.98]"
                                 >
-                                    {loading ? 'Processing...' : 'Activate Portal'}
+                                    {loading ? t('Processing...') : t('Activate Portal')}
                                 </button>
                             </div>
                         </form>
@@ -194,12 +201,12 @@ const StudentSetup = () => {
                                 <CheckCircle2 size={48} />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Identity Verified</h3>
-                                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">Entry Granted</p>
+                                <h3 className="text-2xl font-black text-gray-900 tracking-tight">{t('Identity Verified')}</h3>
+                                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">{t('Entry Granted')}</p>
                             </div>
                             <div className="flex flex-col items-center gap-3 pt-4">
                                 <RefreshCcw className="animate-spin text-blue-500" size={24} />
-                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Redirecting to Dashboard</p>
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{t('Redirecting to Dashboard')}</p>
                             </div>
                         </div>
                     )}

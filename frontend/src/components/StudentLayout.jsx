@@ -5,6 +5,7 @@ import {
     FileText, Wallet, Award, Bell, BadgeCheck,
     LogOut, Menu, X, GraduationCap, ShieldAlert
 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 const NAV_ITEMS = [
     {
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
         section: 'ACADEMICS',
         items: [
             { to: '/student/subjects', icon: BookOpen, label: 'Subjects' },
+            { to: '/student/attendance', icon: BadgeCheck, label: 'Attendance' },
             { to: '/student/results', icon: Award, label: 'Results' },
             { to: '/student/leaderboard', icon: Trophy, label: 'Leaderboard' },
         ]
@@ -31,9 +33,18 @@ const NAV_ITEMS = [
     }
 ];
 
+const MOBILE_NAV_ITEMS = [
+    { to: '/student/dashboard', match: '/student/dashboard', icon: LayoutDashboard, label: 'Home' },
+    { to: '/student/subjects', match: '/student/subjects', icon: BookOpen, label: 'Subjects' },
+    { to: '/student/attendance', match: '/student/attendance', icon: BadgeCheck, label: 'Attend' },
+    { to: '/student/results', match: '/student/results', icon: Award, label: 'Results' },
+    { to: '/student/fees', match: '/student/fees', icon: Wallet, label: 'Fees' }
+];
+
 const StudentLayout = ({ children, title }) => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const [mini, setMini] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -55,6 +66,8 @@ const StudentLayout = ({ children, title }) => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    const isActiveRoute = (match) => location.pathname === match || location.pathname.startsWith(`${match}/`);
+
     return (
         <div className={`erp-shell ${mini ? 'sidebar-mini' : ''}`}>
             {/* Mobile Overlay */}
@@ -73,8 +86,8 @@ const StudentLayout = ({ children, title }) => {
                     </div>
                     {(!mini || mobileOpen) && (
                         <div className="sb-brand-text">
-                            <div className="sb-name">Student Portal</div>
-                            <div className="sb-code">Roll: {student.rollNo || 'N/A'}</div>
+                            <div className="sb-name">{t('Student Portal')}</div>
+                            <div className="sb-code">{t('Roll')}: {student.rollNo || 'N/A'}</div>
                         </div>
                     )}
                 </div>
@@ -82,7 +95,7 @@ const StudentLayout = ({ children, title }) => {
                 <div className="sb-nav">
                     {NAV_ITEMS.map(group => (
                         <div key={group.section} className="sb-group">
-                            {(!mini || mobileOpen) && <div className="sb-section-label">{group.section}</div>}
+                            {(!mini || mobileOpen) && <div className="sb-section-label">{t(group.section)}</div>}
                             {group.items.map(({ to, icon: Icon, label }) => (
                                 <Link
                                     key={to} to={to}
@@ -90,7 +103,7 @@ const StudentLayout = ({ children, title }) => {
                                     onClick={() => setMobileOpen(false)}
                                 >
                                     <span className="sb-item-icon"><Icon size={18} /></span>
-                                    {(!mini || mobileOpen) && <span className="sb-item-label">{label}</span>}
+                                    {(!mini || mobileOpen) && <span className="sb-item-label">{t(label)}</span>}
                                 </Link>
                             ))}
                         </div>
@@ -106,7 +119,7 @@ const StudentLayout = ({ children, title }) => {
                             <LogOut size={18} />
                         </span>
                         {(!mini || mobileOpen) && (
-                            <span className="sb-item-label text-rose-500 font-bold">Logout</span>
+                            <span className="sb-item-label text-rose-500 font-bold">{t('Logout')}</span>
                         )}
                     </div>
                 </div>
@@ -125,7 +138,7 @@ const StudentLayout = ({ children, title }) => {
                         >
                             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
-                        <div className="tb-title">{title}</div>
+                        <div className="tb-title">{t(title)}</div>
                     </div>
 
                     <div className="tb-right">
@@ -142,11 +155,28 @@ const StudentLayout = ({ children, title }) => {
                 </header>
 
                 <main className="erp-main">
-                    <div className="page-content px-4 md:px-0">
+                    <div className="page-content px-0 md:px-0">
                         {children}
                     </div>
                 </main>
             </div>
+
+            {/* Mobile Bottom Navigation */}
+            <nav className="mobile-nav" aria-label="Primary">
+                <div className="mobile-nav-inner">
+                    {MOBILE_NAV_ITEMS.map(({ to, match, icon: Icon, label }) => (
+                        <Link
+                            key={to}
+                            to={to}
+                            className={`mobile-nav-item ${isActiveRoute(match) ? 'active' : ''}`}
+                        >
+                            <Icon size={18} />
+                            <span>{t(label)}</span>
+                            <span className="nav-dot" />
+                        </Link>
+                    ))}
+                </div>
+            </nav>
         </div>
     );
 };

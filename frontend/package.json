@@ -13,26 +13,35 @@
         "android:build": "npm run build && npx cap sync android"
     },
     "dependencies": {
-        "@capacitor/android": "^6.1.2",
-        "@capacitor/core": "^6.1.2",
+        "@capacitor/android": "^7.4.3",
+        "@capacitor/app": "^7.1.0",
+        "@capacitor/core": "^7.4.3",
+        "@capacitor/device": "^7.0.2",
+        "@capacitor/filesystem": "^7.1.8",
+        "@capacitor/push-notifications": "^7.0.3",
+        "@capacitor/share": "^7.0.4",
+        "@tanstack/react-query": "^5.52.0",
         "axios": "^1.6.0",
         "chart.js": "^4.5.1",
         "jspdf": "^4.2.0",
         "jspdf-autotable": "^5.0.7",
+        "localforage": "^1.10.0",
         "lucide-react": "^0.290.0",
         "react": "^18.2.0",
         "react-chartjs-2": "^5.3.1",
         "react-dom": "^18.2.0",
-        "react-router-dom": "^6.18.0"
+        "react-router-dom": "^6.18.0",
+        "y18n": "^5.0.8"
     },
     "devDependencies": {
-        "@capacitor/cli": "^6.1.2",
+        "@capacitor/assets": "^3.0.5",
+        "@capacitor/cli": "^7.4.3",
         "@tailwindcss/vite": "^4.0.0",
         "@types/react": "^18.2.37",
         "@types/react-dom": "^18.2.15",
         "@vitejs/plugin-react": "^4.2.0",
-        "typescript": "^5.5.4",
         "tailwindcss": "^4.0.0",
+        "typescript": "^5.5.4",
         "vite": "^5.0.0"
     }
 }
