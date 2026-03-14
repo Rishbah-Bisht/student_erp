@@ -21,7 +21,7 @@ const StudentFees = () => {
     // Fallback student info from local storage if needed
     const studentInfo = JSON.parse(localStorage.getItem('studentInfo') || '{}');
 
-    const { data: fees = [], isLoading } = useQuery({
+    const { data: feesData, isLoading } = useQuery({
         queryKey: ['student', 'fees'],
         queryFn: async () => {
             try {
@@ -38,6 +38,8 @@ const StudentFees = () => {
             }
         }
     });
+
+    const fees = feesData || [];
 
     useEffect(() => {
         let paid = 0;

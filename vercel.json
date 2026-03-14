@@ -6,11 +6,11 @@
             "destination": "/api/index.js"
         },
         {
-            "source": "/(.*)",
-            "destination": "/frontend/dist/$1"
+            "source": "/assets/(.*)",
+            "destination": "/frontend/dist/assets/$1"
         },
         {
-            "source": "/(.*)",
+            "source": "/((?!api/).*)",
             "destination": "/frontend/dist/index.html"
         }
     ],

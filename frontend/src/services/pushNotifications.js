@@ -130,10 +130,12 @@ export const registerPushNotifications = async ({ requestPermission = false } = 
         }
 
         await attachPushListeners();
+        
+        let timeoutId;
         const registrationResult = Promise.race([
             createPendingRegistration(),
             new Promise((resolve) => {
-                setTimeout(() => {
+                timeoutId = setTimeout(() => {
                     resolve({
                         ok: false,
                         reason: 'timeout',
@@ -142,17 +144,27 @@ export const registerPushNotifications = async ({ requestPermission = false } = 
                 }, PUSH_REGISTRATION_TIMEOUT_MS);
             })
         ]);
-        await PushNotifications.register();
-        const result = await registrationResult;
-        if (!result.ok) {
-            localStorage.removeItem('pushNotificationsEnabled');
-            return result;
-        }
 
-        return { ok: true, message: 'Notifications enabled for this device.' };
+        try {
+            await PushNotifications.register();
+            const result = await registrationResult;
+            clearTimeout(timeoutId);
+            
+            if (!result.ok) {
+                localStorage.removeItem('pushNotificationsEnabled');
+                cleanupPushListeners(); // Clean up if it failed
+                return result;
+            }
+
+            return { ok: true, message: 'Notifications enabled for this device.' };
+        } catch (regError) {
+            clearTimeout(timeoutId);
+            throw regError;
+        }
     } catch (error) {
         localStorage.removeItem('pushNotificationsEnabled');
         clearPendingRegistration();
+        cleanupPushListeners();
         return {
             ok: false,
             reason: 'error',

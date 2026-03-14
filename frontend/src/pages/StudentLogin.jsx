@@ -205,10 +205,6 @@ const StudentLogin = () => {
         />
     </div>
 
-
-                    
-                    <img src="\STUDENT_PORTAL\student_erp\frontend\assets\icon.png" alt="" />
-                    
                     <h1 className="text-2xl font-bold text-[#0f172a] tracking-tight mb-2">
                         {t('De Facto Institute Erp')}
                     </h1>

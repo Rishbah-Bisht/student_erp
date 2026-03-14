@@ -264,6 +264,10 @@ exports.registerDevice = async (req, res) => {
 
 exports.trackActivity = async (req, res) => {
     try {
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ success: false, message: 'User not identified' });
+        }
+
         const event = String(req.body?.event || 'heartbeat').toLowerCase();
         const now = new Date();
         const update = { $set: { lastActiveAt: now } };
@@ -278,21 +282,16 @@ exports.trackActivity = async (req, res) => {
             update.$set.lastDevice = deviceInfo;
         }
 
+        // If it's an app_open, always update
         if (event === 'app_open') {
             await Student.updateOne({ _id: req.user.id }, update);
-            console.info('[student.trackActivity]', {
-                studentId: String(req.user.id),
-                event,
-                platform: deviceInfo.platform || 'unknown',
-                updated: true,
-                recordedAt: now.toISOString()
-            });
-            return res.json({ success: true, message: 'Activity recorded', updated: true });
+            return res.json({ success: true, message: 'Activity recorded (open)', updated: true });
         }
 
         const minMinutes = getActivityWindow();
         const threshold = new Date(now.getTime() - minMinutes * 60 * 1000);
 
+        // For heartbeat, only update if threshold passed
         const result = await Student.updateOne(
             {
                 _id: req.user.id,
@@ -305,20 +304,9 @@ exports.trackActivity = async (req, res) => {
             update
         );
 
-        const updated = result.modifiedCount > 0;
-        if (updated) {
-            console.info('[student.trackActivity]', {
-                studentId: String(req.user.id),
-                event,
-                platform: deviceInfo.platform || 'unknown',
-                updated,
-                recordedAt: now.toISOString()
-            });
-        }
-
-        res.json({ success: true, message: 'Activity recorded', updated });
+        res.json({ success: true, message: 'Activity recorded', updated: result.modifiedCount > 0 });
     } catch (error) {
-        console.error('Error in trackActivity:', error);
+        console.error('[authController.trackActivity] CRITICAL ERROR:', error);
         res.status(500).json({ success: false, message: 'Server error: ' + error.message });
     }
 };
