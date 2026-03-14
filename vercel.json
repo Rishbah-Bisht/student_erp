@@ -10,16 +10,12 @@
             "destination": "/frontend/dist/assets/$1"
         },
         {
-            "source": "/student/(.*)",
-            "destination": "/frontend/dist/index.html"
-        },
-        {
-            "source": "/",
-            "destination": "/frontend/dist/index.html"
-        },
-        {
-            "source": "/(.*)",
+            "source": "/((?!api/|assets/).*\\.[^/]+)$",
             "destination": "/frontend/dist/$1"
+        },
+        {
+            "source": "/((?!api/|assets/).*)",
+            "destination": "/frontend/dist/index.html"
         }
     ],
     "functions": {
