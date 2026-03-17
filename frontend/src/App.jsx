@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { useAppPresence } from './hooks/useAppPresence';
+import { isNativeShell, triggerNativeLogout } from './services/nativeAuth';
 
 const StudentLogin = lazy(() => import('./pages/StudentLogin'));
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
@@ -33,6 +34,27 @@ const getStoredStudentRoute = () => {
     }
 };
 
+function StudentLoginRoute() {
+    const token = localStorage.getItem('studentToken');
+    const nativeShell = isNativeShell();
+
+    useEffect(() => {
+        if (nativeShell && !token) {
+            triggerNativeLogout('token-invalid');
+        }
+    }, [nativeShell, token]);
+
+    if (!nativeShell) {
+        return <StudentLogin />;
+    }
+
+    if (token) {
+        return <Navigate to={getStoredStudentRoute()} replace />;
+    }
+
+    return null;
+}
+
 function App() {
     useAppPresence();
 
@@ -41,7 +63,7 @@ function App() {
             <Suspense fallback={null}>
                 <Routes>
                     <Route path="/" element={<Navigate to={getStoredStudentRoute()} replace />} />
-                    <Route path="/student/login" element={<StudentLogin />} />
+                    <Route path="/student/login" element={<StudentLoginRoute />} />
                     <Route path="/student/setup" element={<StudentSetup />} />
                     <Route path="/student/dashboard" element={<StudentDashboard />} />
                     <Route path="/student/profile" element={<StudentProfile />} />
