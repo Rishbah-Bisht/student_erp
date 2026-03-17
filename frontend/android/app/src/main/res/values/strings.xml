@@ -22,6 +22,7 @@
     <string name="error_network">Network unavailable. Check the connection and retry.</string>
     <string name="error_generic">Something went wrong. Please try again.</string>
     <string name="error_session_expired">Your session expired. Please sign in again.</string>
+    <string name="login_signed_out">You have been signed out.</string>
     <string name="error_secure_connection">Secure connection failed. The app blocked this page.</string>
     <string name="error_untrusted_host">Blocked navigation to an untrusted host.</string>
     <string name="error_portal_load">Unable to load the portal right now.</string>

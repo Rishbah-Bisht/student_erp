@@ -52,7 +52,7 @@ class LoginActivity : AppCompatActivity() {
         }
 
         intent.getStringExtra(EXTRA_MESSAGE)?.takeIf { it.isNotBlank() }?.let {
-            showError(it)
+            showError(resolveMessage(it))
         }
     }
 
@@ -123,6 +123,14 @@ class LoginActivity : AppCompatActivity() {
         errorText.visibility = if (message.isNullOrBlank()) View.GONE else View.VISIBLE
         if (!message.isNullOrBlank()) {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun resolveMessage(rawMessage: String): String {
+        return when (rawMessage) {
+            "session-expired", "web-session-cleared" -> getString(R.string.error_session_expired)
+            "user-logout", "logout" -> getString(R.string.login_signed_out)
+            else -> rawMessage
         }
     }
 

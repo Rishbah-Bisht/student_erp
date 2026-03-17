@@ -34,6 +34,16 @@ const applyNativeSession = (payload) => {
     nativeSession = isNativePayload(payload) ? payload : null;
 };
 
+const clearSensitiveKey = (key) => {
+    if (!nativeSession) return;
+
+    if (key === 'studentToken') {
+        nativeSession = { ...nativeSession, accessToken: null };
+    } else if (key === 'studentInfo') {
+        nativeSession = { ...nativeSession, student: null };
+    }
+};
+
 const sensitiveValueFor = (key) => {
     if (!nativeSession) return null;
 
@@ -84,9 +94,7 @@ const installStorageShim = () => {
 
     Storage.prototype.removeItem = function removeItem(key) {
         if (this === window.localStorage && nativeSession && SENSITIVE_KEYS.has(String(key))) {
-            if (key === 'studentToken' || key === 'studentInfo') {
-                triggerNativeLogout('web-session-cleared');
-            }
+            clearSensitiveKey(String(key));
             return;
         }
 
