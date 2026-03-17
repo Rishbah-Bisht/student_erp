@@ -72,6 +72,25 @@ data class AuthState(
     }
 }
 
+data class ServerHealth(
+    val status: String,
+    val mongodb: String,
+    val redis: String?,
+    val lastConnectedAt: String?
+) {
+    val isDatabaseReady: Boolean
+        get() = mongodb.equals("connected", ignoreCase = true)
+
+    companion object {
+        fun fromJson(json: JSONObject): ServerHealth = ServerHealth(
+            status = json.optString("status"),
+            mongodb = json.optString("mongodb"),
+            redis = json.optString("redis").takeIf { it.isNotBlank() },
+            lastConnectedAt = json.optString("lastConnectedAt").takeIf { it.isNotBlank() }
+        )
+    }
+}
+
 data class DevicePayload(
     val platform: String,
     val model: String,

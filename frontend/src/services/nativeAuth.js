@@ -7,15 +7,7 @@ const getBridge = () => (typeof window !== 'undefined' ? window.NativeAuth : nul
 
 const isNativePayload = (payload) => Boolean(payload && payload.isNativeShell);
 
-const parseBootstrap = () => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    if (isNativePayload(window.__NATIVE_AUTH_BOOTSTRAP__)) {
-        return window.__NATIVE_AUTH_BOOTSTRAP__;
-    }
-
+const readBridgeBootstrap = () => {
     try {
         const raw = getBridge()?.getBootstrap?.();
         if (!raw) return null;
@@ -28,6 +20,18 @@ const parseBootstrap = () => {
     } catch {
         return null;
     }
+};
+
+const parseBootstrap = () => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    if (isNativePayload(window.__NATIVE_AUTH_BOOTSTRAP__)) {
+        return window.__NATIVE_AUTH_BOOTSTRAP__;
+    }
+
+    return readBridgeBootstrap();
 };
 
 const applyNativeSession = (payload) => {
@@ -126,6 +130,21 @@ export const initNativeAuthBridge = () => {
 };
 
 export const isNativeShell = () => Boolean(nativeSession?.isNativeShell || isNativePayload(parseBootstrap()));
+
+export const syncNativeSession = () => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    const bootstrap = readBridgeBootstrap() || parseBootstrap();
+    if (!bootstrap) {
+        return null;
+    }
+
+    applyNativeSession(bootstrap);
+    window.__NATIVE_AUTH_BOOTSTRAP__ = bootstrap;
+    return bootstrap;
+};
 
 export const triggerNativeLogout = (reason = 'logout') => {
     try {

@@ -123,7 +123,7 @@ class WebViewActivity : AppCompatActivity() {
                     if (session != null) {
                         view.loadUrl(targetUri.toString(), buildAuthHeaders(session))
                     } else {
-                        handleSessionLoss(getString(R.string.error_session_expired))
+                        handleSessionLoss("session_expired")
                     }
                     true
                 } else {
@@ -169,18 +169,38 @@ class WebViewActivity : AppCompatActivity() {
             }
 
             override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
-                handleSessionLoss(getString(R.string.error_generic))
+                handleSessionLoss("session_expired")
                 return true
             }
         }
     }
 
     private suspend fun bootstrapWebView(validateWithServer: Boolean) {
+        val cachedSession = authRepository.loadCachedSession()
+        val canValidateWithServer = if (validateWithServer) {
+            authRepository.waitForServerReady()
+        } else {
+            false
+        }
+
+        if (validateWithServer && !canValidateWithServer) {
+            cachedSession
+                ?.takeIf { authRepository.isTokenLocallyValid(it.accessToken) }
+                ?.let { session ->
+                    showTransientError(getString(R.string.error_server_starting))
+                    applySession(session)
+                    return
+                }
+
+            showTransientError(getString(R.string.error_server_starting))
+            return
+        }
+
         val session = try {
-            authRepository.ensureValidSession(validateWithServer = validateWithServer)
+            authRepository.ensureValidSession(validateWithServer = canValidateWithServer)
         } catch (_: IOException) {
             val cached = authRepository.loadCachedSession()
-            if (cached != null && !JwtUtils.isExpired(cached.accessToken)) {
+            if (cached != null && authRepository.isTokenLocallyValid(cached.accessToken, 0L)) {
                 cached
             } else {
                 null
@@ -188,19 +208,11 @@ class WebViewActivity : AppCompatActivity() {
         }
 
         if (session == null) {
-            handleSessionLoss(getString(R.string.error_session_expired))
+            handleSessionLoss("session_expired")
             return
         }
 
-        currentSession = session
-        scheduleRefresh(session)
-
-        if (!initialLoadComplete) {
-            portalWebView.loadUrl(BuildConfig.WEB_BASE_URL, buildAuthHeaders(session))
-            initialLoadComplete = true
-        } else {
-            injectRuntimeAuth(session)
-        }
+        applySession(session)
     }
 
     private fun scheduleRefresh(session: AuthState) {
@@ -214,7 +226,7 @@ class WebViewActivity : AppCompatActivity() {
             try {
                 val refreshed = authRepository.ensureValidSession(forceRefresh = true)
                 if (refreshed == null) {
-                    handleSessionLoss(getString(R.string.error_session_expired))
+                    handleSessionLoss("session_expired")
                     return@launch
                 }
 
@@ -224,6 +236,18 @@ class WebViewActivity : AppCompatActivity() {
             } catch (_: IOException) {
                 currentSession?.let { scheduleRefresh(it) }
             }
+        }
+    }
+
+    private fun applySession(session: AuthState) {
+        currentSession = session
+        scheduleRefresh(session)
+
+        if (!initialLoadComplete) {
+            portalWebView.loadUrl(BuildConfig.WEB_BASE_URL, buildAuthHeaders(session))
+            initialLoadComplete = true
+        } else {
+            injectRuntimeAuth(session)
         }
     }
 
@@ -321,7 +345,11 @@ class WebViewActivity : AppCompatActivity() {
         CookieManager.getInstance().flush()
     }
 
-    private fun handleSessionLoss(message: String) {
+    private fun showTransientError(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun handleSessionLoss(reason: String) {
         if (logoutInProgress) {
             return
         }
@@ -332,9 +360,13 @@ class WebViewActivity : AppCompatActivity() {
         lifecycleScope.launch {
             authRepository.logout()
             clearWebViewData()
-            startActivity(LoginActivity.createIntent(this@WebViewActivity, message))
+            startActivity(LoginActivity.createIntent(this@WebViewActivity, normalizeReason(reason)))
             finish()
         }
+    }
+
+    private fun normalizeReason(reason: String): String {
+        return reason.trim().lowercase().replace('-', '_')
     }
 
     private fun originOf(url: String): String = Uri.parse(url).let { uri ->
@@ -351,7 +383,7 @@ class WebViewActivity : AppCompatActivity() {
         @JavascriptInterface
         fun logout(reason: String?) {
             runOnUiThread {
-                handleSessionLoss(reason?.takeIf { it.isNotBlank() } ?: getString(R.string.error_session_expired))
+                handleSessionLoss(reason?.takeIf { it.isNotBlank() } ?: "session_expired")
             }
         }
     }

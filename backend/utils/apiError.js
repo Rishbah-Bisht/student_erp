@@ -21,13 +21,16 @@ const isDatabaseUnavailableError = (error) => {
     return DATABASE_ERROR_PATTERNS.some((pattern) => pattern.test(haystack));
 };
 
+const sendDatabaseUnavailable = (res) => res.status(503).json({
+    success: false,
+    error: 'db_unavailable',
+    code: 'DATABASE_UNAVAILABLE',
+    message: 'Database is waking up or temporarily unavailable. Please try again in a few moments.'
+});
+
 const sendApiError = (res, error, fallbackMessage = 'Internal Server Error') => {
     if (isDatabaseUnavailableError(error)) {
-        return res.status(503).json({
-            success: false,
-            code: 'DATABASE_UNAVAILABLE',
-            message: 'Database is waking up or temporarily unavailable. Please try again in a few moments.'
-        });
+        return sendDatabaseUnavailable(res);
     }
 
     const message = error?.status && error?.message
@@ -48,5 +51,6 @@ const sendApiError = (res, error, fallbackMessage = 'Internal Server Error') => 
 
 module.exports = {
     isDatabaseUnavailableError,
-    sendApiError
+    sendApiError,
+    sendDatabaseUnavailable
 };

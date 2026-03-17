@@ -10,6 +10,12 @@ const {
 } = require('../utils/mobileAuth');
 const { sendApiError } = require('../utils/apiError');
 
+const sendAuthFailure = (res, status, error, message) => res.status(status).json({
+    success: false,
+    error,
+    message
+});
+
 const updateStudentActivity = async (student, deviceInfo) => {
     const now = new Date();
     const portalAccess = student.portalAccess || {};
@@ -33,7 +39,11 @@ exports.mobileLogin = async (req, res) => {
         let { rollNo, password } = req.body || {};
 
         if (!rollNo || !password) {
-            return res.status(400).json({ success: false, message: 'Roll number and password are required.' });
+            return res.status(400).json({
+                success: false,
+                error: 'validation_error',
+                message: 'Roll number and password are required.'
+            });
         }
 
         rollNo = String(rollNo).trim();
@@ -42,12 +52,12 @@ exports.mobileLogin = async (req, res) => {
         }).populate('batchId');
 
         if (!student) {
-            return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+            return sendAuthFailure(res, 401, 'invalid_credentials', 'Invalid credentials.');
         }
 
         const passwordMatches = await bcrypt.compare(String(password), student.password || '');
         if (!passwordMatches) {
-            return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+            return sendAuthFailure(res, 401, 'invalid_credentials', 'Invalid credentials.');
         }
 
         await updateStudentActivity(student, req.body);
@@ -73,7 +83,11 @@ exports.mobileRefresh = async (req, res) => {
     try {
         const refreshToken = String(req.body?.refreshToken || '').trim();
         if (!refreshToken) {
-            return res.status(400).json({ success: false, message: 'Refresh token is required.' });
+            return res.status(400).json({
+                success: false,
+                error: 'validation_error',
+                message: 'Refresh token is required.'
+            });
         }
 
         const tokenHash = hashRefreshToken(refreshToken);
@@ -82,7 +96,7 @@ exports.mobileRefresh = async (req, res) => {
         }).populate('batchId');
 
         if (!student) {
-            return res.status(401).json({ success: false, message: 'Refresh token is invalid.' });
+            return sendAuthFailure(res, 401, 'token_invalid', 'Refresh token is invalid.');
         }
 
         const now = new Date();
@@ -91,7 +105,7 @@ exports.mobileRefresh = async (req, res) => {
         const existingSession = student.mobileRefreshSessions.find((session) => session.tokenHash === tokenHash);
         if (!existingSession || existingSession.expiresAt <= now) {
             await student.save();
-            return res.status(401).json({ success: false, message: 'Refresh token has expired.' });
+            return sendAuthFailure(res, 401, 'session_expired', 'Refresh token has expired.');
         }
 
         await updateStudentActivity(student, req.body);
@@ -146,7 +160,7 @@ exports.mobileSession = [
         try {
             const student = await Student.findById(req.user.id).populate('batchId');
             if (!student) {
-                return res.status(404).json({ success: false, message: 'Student not found.' });
+                return sendAuthFailure(res, 401, 'token_invalid', 'Authentication failed. Please log in again.');
             }
 
             res.json({

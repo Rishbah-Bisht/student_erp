@@ -1,6 +1,7 @@
 package com.student.erp
 
 import android.content.Context
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.IOException
@@ -27,7 +28,7 @@ class AuthRepository(
     ): AuthState? = refreshMutex.withLock {
         val cached = secureTokenStore.read() ?: return@withLock null
 
-        if (forceRefresh || JwtUtils.isExpired(cached.accessToken, 60L)) {
+        if (forceRefresh || !isTokenLocallyValid(cached.accessToken, 60L)) {
             return@withLock refreshOrInvalidate(cached)
         }
 
@@ -41,14 +42,37 @@ class AuthRepository(
             secureTokenStore.write(updated)
             updated
         } catch (error: ApiException) {
-            if (error.statusCode == 401) {
-                refreshOrInvalidate(cached)
-            } else {
-                cached
+            when {
+                isHardAuthFailure(error) -> refreshOrInvalidate(cached)
+                isDatabaseUnavailable(error) -> cached
+                else -> cached
             }
         } catch (_: IOException) {
             cached
         }
+    }
+
+    suspend fun waitForServerReady(maxRetries: Int = 3, delayMs: Long = 1_500L): Boolean {
+        repeat(maxRetries) { attempt ->
+            try {
+                val health = api.getHealthStatus()
+                if (health.isDatabaseReady) {
+                    return true
+                }
+            } catch (_: IOException) {
+                // The caller treats readiness checks as best-effort and falls back to local token checks.
+            }
+
+            if (attempt < maxRetries - 1) {
+                delay(delayMs)
+            }
+        }
+
+        return false
+    }
+
+    fun isTokenLocallyValid(token: String, skewSeconds: Long = 30L): Boolean {
+        return !JwtUtils.isExpired(token, skewSeconds)
     }
 
     suspend fun logout() {
@@ -70,19 +94,35 @@ class AuthRepository(
         secureTokenStore.write(refreshed)
         refreshed
     } catch (error: ApiException) {
-        if (error.statusCode == 401) {
+        if (isHardAuthFailure(error)) {
             secureTokenStore.clear()
             null
-        } else if (!JwtUtils.isExpired(cached.accessToken)) {
+        } else if (isDatabaseUnavailable(error) || isTokenLocallyValid(cached.accessToken, 0L)) {
             cached
         } else {
             throw error
         }
     } catch (error: IOException) {
-        if (!JwtUtils.isExpired(cached.accessToken)) {
+        if (isTokenLocallyValid(cached.accessToken, 0L)) {
             cached
         } else {
             throw error
         }
+    }
+
+    private fun isHardAuthFailure(error: ApiException): Boolean {
+        return error.statusCode == 401 && !isDatabaseUnavailable(error)
+    }
+
+    private fun isDatabaseUnavailable(error: ApiException): Boolean {
+        return error.statusCode == 503 || normalizedReason(error.reason) == "db_unavailable"
+    }
+
+    private fun normalizedReason(reason: String?): String? {
+        return reason
+            ?.trim()
+            ?.lowercase()
+            ?.replace('-', '_')
+            ?.takeIf { it.isNotBlank() }
     }
 }

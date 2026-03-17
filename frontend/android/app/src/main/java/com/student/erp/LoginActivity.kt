@@ -73,12 +73,7 @@ class LoginActivity : AppCompatActivity() {
                 startActivity(WebViewActivity.createIntent(this@LoginActivity))
                 finishAffinity()
             } catch (error: ApiException) {
-                val message = when (error.statusCode) {
-                    401 -> getString(R.string.error_invalid_credentials)
-                    429 -> getString(R.string.error_rate_limited)
-                    else -> error.message.ifBlank { getString(R.string.error_generic) }
-                }
-                showError(message)
+                handleAuthError(error.statusCode, error.reason, error.message)
             } catch (_: IOException) {
                 showError(getString(R.string.error_network))
             } catch (_: Exception) {
@@ -87,6 +82,26 @@ class LoginActivity : AppCompatActivity() {
                 setLoading(false)
             }
         }
+    }
+
+    private fun handleAuthError(code: Int, reason: String?, fallbackMessage: String) {
+        val normalizedReason = reason
+            ?.trim()
+            ?.lowercase()
+            ?.replace('-', '_')
+
+        val message = when {
+            code == 401 && normalizedReason == "invalid_credentials" -> getString(R.string.error_invalid_credentials)
+            code == 401 && normalizedReason == "session_expired" -> getString(R.string.error_session_expired)
+            code == 401 && normalizedReason == "token_invalid" -> getString(R.string.error_authentication_failed)
+            code == 401 && normalizedReason == "db_unavailable" -> getString(R.string.error_server_starting)
+            code == 401 -> getString(R.string.error_login_failed_401)
+            code == 429 -> getString(R.string.error_rate_limited)
+            code == 503 || normalizedReason == "db_unavailable" -> getString(R.string.error_server_unavailable)
+            else -> fallbackMessage.ifBlank { getString(R.string.error_generic) }
+        }
+
+        showError(message)
     }
 
     private fun validate(rollNo: String, password: String): Boolean {
@@ -127,9 +142,11 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun resolveMessage(rawMessage: String): String {
-        return when (rawMessage) {
-            "session-expired", "web-session-cleared" -> getString(R.string.error_session_expired)
-            "user-logout", "logout" -> getString(R.string.login_signed_out)
+        return when (rawMessage.trim().lowercase().replace('-', '_')) {
+            "session_expired", "web_session_cleared" -> getString(R.string.error_session_expired)
+            "token_invalid", "token_missing" -> getString(R.string.error_authentication_failed)
+            "db_unavailable" -> getString(R.string.error_server_starting)
+            "user_logout", "logout" -> getString(R.string.login_signed_out)
             else -> rawMessage
         }
     }

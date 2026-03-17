@@ -9,6 +9,7 @@ const feeRoutes = require('./routes/feeRoutes');
 const resultRoutes = require('./routes/resultRoutes');
 const { redis } = require('./middleware/cache');
 const { connectToDatabase, getDatabaseHealth } = require('./config/database');
+const { sendDatabaseUnavailable } = require('./utils/apiError');
 
 const app = express();
 
@@ -72,11 +73,7 @@ const ensureDatabase = async (req, res, next) => {
             message: error.message
         });
 
-        res.status(503).json({
-            success: false,
-            code: 'DATABASE_UNAVAILABLE',
-            message: 'Database is waking up or temporarily unavailable. Please try again in a few moments.'
-        });
+        sendDatabaseUnavailable(res);
     }
 };
 

@@ -18,10 +18,14 @@
     <string name="validation_roll_number_short">Roll number looks too short.</string>
     <string name="validation_password_required">Password is required.</string>
     <string name="error_invalid_credentials">Invalid roll number or password.</string>
+    <string name="error_authentication_failed">Authentication failed. Please sign in again.</string>
     <string name="error_rate_limited">Too many attempts. Wait a minute and try again.</string>
     <string name="error_network">Network unavailable. Check the connection and retry.</string>
     <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_login_failed_401">Login failed (401). Please try again.</string>
     <string name="error_session_expired">Your session expired. Please sign in again.</string>
+    <string name="error_server_starting">Server is starting up. Please wait a moment.</string>
+    <string name="error_server_unavailable">Server unavailable. Please try again later.</string>
     <string name="login_signed_out">You have been signed out.</string>
     <string name="error_secure_connection">Secure connection failed. The app blocked this page.</string>
     <string name="error_untrusted_host">Blocked navigation to an untrusted host.</string>

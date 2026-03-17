@@ -11,7 +11,11 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-class ApiException(val statusCode: Int, override val message: String) : IOException(message)
+class ApiException(
+    val statusCode: Int,
+    val reason: String?,
+    override val message: String
+) : IOException(message)
 
 class AuthApi {
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
@@ -54,6 +58,17 @@ class AuthApi {
         )
     }
 
+    suspend fun getHealthStatus(): ServerHealth {
+        val json = executeJson(
+            Request.Builder()
+                .url(baseUrl + "health")
+                .get()
+                .build()
+        )
+
+        return ServerHealth.fromJson(json)
+    }
+
     suspend fun session(accessToken: String): StudentSession {
         val json = executeJson(
             Request.Builder()
@@ -77,16 +92,32 @@ class AuthApi {
     private suspend fun executeJson(request: Request): JSONObject = withContext(Dispatchers.IO) {
         client.newCall(request).execute().use { response ->
             val rawBody = response.body?.string().orEmpty()
-            val jsonBody = rawBody.takeIf { it.isNotBlank() }?.let(::JSONObject) ?: JSONObject()
+            val jsonBody = parseJson(rawBody)
 
             if (!response.isSuccessful) {
                 val message = jsonBody.optString("message")
                     .takeIf { it.isNotBlank() }
+                    ?: rawBody.takeIf { it.isNotBlank() }
                     ?: "Request failed with status ${response.code}"
-                throw ApiException(response.code, message)
+                val reason = jsonBody.optString("error")
+                    .takeIf { it.isNotBlank() }
+                    ?: jsonBody.optString("reason").takeIf { it.isNotBlank() }
+                throw ApiException(response.code, reason = reason, message = message)
             }
 
             jsonBody
+        }
+    }
+
+    private fun parseJson(rawBody: String): JSONObject {
+        if (rawBody.isBlank()) {
+            return JSONObject()
+        }
+
+        return try {
+            JSONObject(rawBody)
+        } catch (_: Exception) {
+            JSONObject().put("message", rawBody)
         }
     }
 
