@@ -5,6 +5,8 @@ import api from '../services/api';
 import instituteLogo from '../assets/icon.png';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageToggleButton from '../components/LanguageToggleButton';
+import { isNativeShell } from '../services/nativeAuth';
+
 
 const StudentLogin = () => {
     const { t } = useLanguage();
@@ -21,6 +23,21 @@ const StudentLogin = () => {
     useEffect(() => {
         const token = localStorage.getItem('studentToken');
         if (!token) return;
+
+        if (isNativeShell()) {
+            const webUrl = import.meta.env.VITE_STUDENT_WEB_URL;
+            if (webUrl) {
+                try {
+                    const targetOrigin = new URL(webUrl).origin;
+                    if (window.location.origin !== targetOrigin) {
+                        window.location.assign(webUrl);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Invalid VITE_STUDENT_WEB_URL:', webUrl);
+                }
+            }
+        }
 
         try {
             const student = JSON.parse(localStorage.getItem('studentInfo') || '{}');
@@ -75,7 +92,23 @@ const StudentLogin = () => {
             if (response.data.success) {
                 localStorage.setItem('studentToken', response.data.token);
                 localStorage.setItem('studentInfo', JSON.stringify(response.data.student));
-                if (response.data.student.isFirstLogin) {
+                
+                if (isNativeShell()) {
+                    const webUrl = import.meta.env.VITE_STUDENT_WEB_URL;
+                    if (webUrl) {
+                        try {
+                            const targetOrigin = new URL(webUrl).origin;
+                            if (window.location.origin !== targetOrigin) {
+                                window.location.assign(webUrl);
+                            }
+                        } catch (e) {
+                            console.error('Invalid VITE_STUDENT_WEB_URL:', webUrl);
+                            navigate('/student/dashboard');
+                        }
+                    } else {
+                        navigate('/student/dashboard');
+                    }
+                } else if (response.data.student.isFirstLogin) {
                     navigate('/student/setup');
                 } else {
                     navigate('/student/dashboard');

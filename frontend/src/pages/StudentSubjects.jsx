@@ -48,10 +48,40 @@ const StudentSubjects = () => {
 
     const subjects = student?.subjectTeachers || [];
 
-    const filteredSubjects = useMemo(() => subjects.filter(s =>
-        s.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.teacher.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [subjects, searchTerm]);
+    const filteredSubjects = useMemo(() => subjects.filter((subjectRow) => {
+        const subjectName = String(subjectRow?.subject || '').toLowerCase();
+        const teacherName = String(subjectRow?.teacher || '').toLowerCase();
+        const query = searchTerm.toLowerCase();
+
+        return subjectName.includes(query) || teacherName.includes(query);
+    }), [subjects, searchTerm]);
+
+    const getScoreTone = (score) => {
+        if (score >= 75) {
+            return {
+                text: 'text-emerald-600',
+                badge: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                bar: 'bg-emerald-500',
+                label: t('Strong')
+            };
+        }
+
+        if (score >= 40) {
+            return {
+                text: 'text-amber-600',
+                badge: 'bg-amber-50 text-amber-700 border-amber-100',
+                bar: 'bg-amber-500',
+                label: t('Stable')
+            };
+        }
+
+        return {
+            text: 'text-rose-600',
+            badge: 'bg-rose-50 text-rose-700 border-rose-100',
+            bar: 'bg-rose-500',
+            label: t('Needs Focus')
+        };
+    };
 
     if (isLoading) {
         return (
@@ -103,23 +133,28 @@ const StudentSubjects = () => {
     return (
         <StudentLayout title="My Subjects">
             <div className="max-w-6xl mx-auto space-y-8">
-                {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
                         <h1 className="text-3xl font-black text-gray-900 tracking-tight">{t('Academic Curriculum')}</h1>
-                        <p className="text-gray-500 font-medium mt-1">{t('Manage your enrolled subjects and Faculty.')}</p>
+                        <p className="text-gray-500 font-medium mt-1">{t('Review your enrolled subjects, faculty guidance, and current performance in one place.')}</p>
                     </div>
 
-                    {/* Search Bar */}
-                    <div className="relative w-full md:w-80">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder={t('Search subjects or teachers...')}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium text-sm"
-                        />
+                    <div className="flex w-full md:w-auto flex-col sm:flex-row gap-3 sm:items-center">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.24em] text-slate-500 shadow-sm">
+                            <BookOpen size={14} className="text-slate-400" />
+                            {filteredSubjects.length} {t('Subjects')}
+                        </div>
+
+                        <div className="relative w-full md:w-80">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder={t('Search subjects or teachers...')}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 outline-none transition-all font-medium text-sm"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -131,117 +166,94 @@ const StudentSubjects = () => {
                 )}
 
                 {subjects.length > 0 ? (
-                    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                        {filteredSubjects.length > 0 ? filteredSubjects.map((s, idx) => {
+                            const averageMarks = Number.isFinite(Number(s.averageMarks))
+                                ? Math.max(0, Math.min(100, Number(s.averageMarks)))
+                                : 0;
+                            const scoreTone = getScoreTone(averageMarks);
+                            const teacherName = s.teacher === 'Unassigned'
+                                ? t('Unassigned')
+                                : s.teacher;
 
-                        {/* Page Title */}
-                        <div className="mb-6">
-                            <h1 className="text-xl sm:text-2xl font-black text-gray-900">{t('My Subjects')}</h1>
-                            <p className="text-sm text-gray-500 mt-1">
-                                {t('View your subject performance and results')}
-                            </p>
-                        </div>
-
-                        {/* Subjects Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-
-                            {filteredSubjects.map((s, idx) => (
-                                <div
+                            return (
+                                <button
                                     key={idx}
+                                    type="button"
                                     onClick={() => navigate(`/student/results/subject/${s.subject}`)}
-                                    className="group bg-white rounded-md border border-gray-100 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col active:scale-[0.98]"
+                                    className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-[0_20px_45px_-28px_rgba(15,23,42,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_30px_60px_-30px_rgba(15,23,42,0.35)] focus:outline-none focus:ring-2 focus:ring-slate-900/10 active:scale-[0.99]"
                                 >
+                                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-900 via-slate-700 to-slate-400 opacity-80" />
 
-                                    {/* Accent Line */}
-                                    <div className="h-1.5 sm:h-2 bg-blue-500 group-hover:h-2.5 transition-all duration-300" />
-
-                                    <div className="p-4 sm:p-6 flex-1 flex flex-col">
-
-                                        {/* Header */}
-                                        <div className="flex items-start justify-between mb-3 sm:mb-4">
-
-                                            <div className="p-2 sm:p-3 bg-blue-50 rounded-md text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                                <BookOpen size={18} className="sm:w-6 sm:h-6 shrink-0" />
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="min-w-0 flex items-center gap-3">
+                                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-200">
+                                                <BookOpen size={20} />
                                             </div>
-
-                                            <div className="px-2 py-1 sm:px-3 sm:py-1 bg-gray-50 text-gray-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded-md border border-gray-100 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                                                {t('Active')}
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">{t('Subject')}</p>
+                                                <h3 className="mt-1 line-clamp-2 text-lg font-black leading-tight text-slate-900">
+                                                    {s.subject}
+                                                </h3>
                                             </div>
-
                                         </div>
 
-                                        {/* Subject Name */}
-                                        <h3 className="text-base sm:text-xl font-black text-gray-900 mb-1.5 sm:mb-2 group-hover:text-blue-600 transition-colors line-clamp-2">
-                                            {s.subject}
-                                        </h3>
-
-                                        {/* Teacher */}
-                                        <div className="flex items-center gap-2 text-gray-500 mb-4 font-bold text-xs sm:text-sm">
-                                            <User size={14} className="text-gray-400 shrink-0" />
-                                            <span className="truncate">
-                                                {s.teacher === "Unassigned"
-                                                    ? t('Unassigned')
-                                                    : `${t('Faculty')} : ${s.teacher}`}
-                                            </span>
+                                        <div className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-xs font-black ${scoreTone.badge}`}>
+                                            {averageMarks}%
                                         </div>
-
-                                        {/* Average Score */}
-                                        <div className="mt-1 mb-5 sm:mb-6">
-
-                                            <div className="flex justify-between items-center mb-1.5">
-
-                                                <span className="text-[10px] sm:text-[11px] font-black text-gray-400 uppercase tracking-wider">
-                                                    {t('Avg. Test Score')}
-                                                </span>
-
-                                                <span
-                                                    className={`text-xs sm:text-sm font-black ${s.averageMarks >= 75
-                                                            ? "text-green-600"
-                                                            : s.averageMarks >= 40
-                                                                ? "text-blue-600"
-                                                                : "text-rose-600"
-                                                        }`}
-                                                >
-                                                    {s.averageMarks} %
-                                                </span>
-
-                                            </div>
-
-                                            {/* Progress Bar */}
-                                            <div className="h-1.5 w-full bg-gray-100 rounded-md overflow-hidden">
-
-                                                <div
-                                                    className={`h-full transition-all duration-500 ${s.averageMarks >= 75
-                                                            ? "bg-green-500"
-                                                            : s.averageMarks >= 40
-                                                                ? "bg-blue-500"
-                                                                : "bg-rose-500"
-                                                        }`}
-                                                    style={{ width: `${s.averageMarks}%` }}
-                                                />
-
-                                            </div>
-
-                                        </div>
-
-                                        {/* Footer */}
-                                        <div className="mt-auto flex items-center justify-between pt-3 sm:pt-4 border-t border-gray-50">
-
-                                            <span className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 sm:gap-2">
-                                                <GraduationCap size={14} className="shrink-0" />
-                                                {t('Subject Hub')}
-                                            </span>
-
-                                            <div className="p-1.5 sm:p-2 rounded-md group-hover:bg-blue-50 text-gray-300 group-hover:text-blue-500 transition-all shrink-0">
-                                                <ArrowRight size={16} className="sm:w-[18px] sm:h-[18px]" />
-                                            </div>
-
-                                        </div>
-
                                     </div>
-                                </div>
-                            ))}
 
-                        </div>
+                                    <div className="mt-5 space-y-3">
+                                        <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{t('Faculty')}</p>
+                                            <div className="mt-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                                <User size={15} className="shrink-0 text-slate-400" />
+                                                <span className="truncate">{teacherName}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{t('Average Score')}</p>
+                                                <span className={`text-xs font-black uppercase tracking-[0.18em] ${scoreTone.text}`}>
+                                                    {scoreTone.label}
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white ring-1 ring-slate-100">
+                                                <div
+                                                    className={`h-full rounded-full transition-all duration-500 ${scoreTone.bar}`}
+                                                    style={{ width: `${averageMarks}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                                        <span className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">
+                                            <GraduationCap size={14} className="shrink-0" />
+                                            {t('Subject Hub')}
+                                        </span>
+
+                                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-all group-hover:border-slate-900 group-hover:text-slate-900">
+                                            <ArrowRight size={17} />
+                                        </span>
+                                    </div>
+                                </button>
+                            );
+                        }) : (
+                            <div className="sm:col-span-2 xl:col-span-3 rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center shadow-sm">
+                                <div className="mx-auto max-w-sm space-y-4">
+                                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
+                                        <Search size={30} />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-slate-900">{t('No subjects found')}</h3>
+                                    <p className="text-sm text-slate-500">
+                                        {t('Try a different subject or teacher name to refine your search.')}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="bg-white rounded-md border-2 border-dashed border-gray-200 p-12 text-center">

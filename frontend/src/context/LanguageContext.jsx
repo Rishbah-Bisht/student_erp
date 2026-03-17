@@ -283,11 +283,34 @@ const translations = {
 
 const LanguageContext = createContext(null);
 
-const interpolate = (template, values = {}) =>
-    Object.entries(values).reduce(
-        (result, [key, value]) => result.replaceAll(`{{${key}}}`, String(value)),
-        template
+const safeString = (val) => {
+    if (val === null || val === undefined) return '';
+    try {
+        if (typeof val === 'symbol') {
+            console.warn('LanguageContext: Symbol encountered:', val);
+            return val.toString();
+        }
+        if (typeof val === 'object') {
+            console.warn('LanguageContext: Object encountered where string expected:', val);
+            return '[Object]';
+        }
+        return String(val);
+    } catch (e) {
+        console.error('LanguageContext: Failed to stringify value:', e);
+        return '[Error]';
+    }
+};
+
+const interpolate = (template, values = {}) => {
+    const templateStr = typeof template === 'string' ? template : safeString(template);
+    
+    return Object.entries(values).reduce(
+        (result, [key, value]) => {
+            return result.replaceAll(`{{${key}}}`, safeString(value));
+        },
+        templateStr
     );
+};
 
 export const LanguageProvider = ({ children }) => {
     const [language, setLanguage] = useState(() => localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'en');
@@ -302,6 +325,9 @@ export const LanguageProvider = ({ children }) => {
         setLanguage,
         toggleLanguage: () => setLanguage((current) => (current === 'en' ? 'hi' : 'en')),
         t: (key, values = {}) => {
+            if (typeof key !== 'string' && key !== null && key !== undefined) {
+                console.warn('LanguageContext: t() called with non-string key:', key);
+            }
             const template = language === 'hi'
                 ? translations.hi[key] || key
                 : key;

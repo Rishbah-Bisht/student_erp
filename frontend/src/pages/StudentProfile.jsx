@@ -3,120 +3,176 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import StudentLayout from '../components/StudentLayout';
 import {
-    User, Mail, Calendar, MapPin,
-    RefreshCcw, AlertTriangle,
-    Users, Home, GraduationCap,
-    Phone, CreditCard, School, ExternalLink,
-    ChevronRight, Award, X
+    User,
+    Mail,
+    Calendar,
+    MapPin,
+    RefreshCcw,
+    AlertTriangle,
+    Users,
+    Home,
+    GraduationCap,
+    Phone,
+    CreditCard,
+    School,
+    ExternalLink,
+    Award,
+    X
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getCached, setCached } from '../utils/offlineCache';
 import { useLanguage } from '../context/LanguageContext';
 
-// 1. Mobile-Optimized Info Card
-const InfoCard = ({ icon: Icon, label, value, colorClass = "bg-blue-50 text-blue-600" }) => (
-    <div className="flex flex-col p-3.5 rounded-md bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-transform">
-        <div className={`h-8 w-8 rounded-md flex items-center justify-center mb-2 ${colorClass}`}>
-            <Icon size={16} />
-        </div>
-        <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
-            <p className="text-sm font-semibold text-gray-800 truncate">{value || '—'}</p>
+const EMPTY_VALUE = '-';
+
+const formatValue = (value) => {
+    if (value === null || value === undefined) return EMPTY_VALUE;
+    if (typeof value === 'string' && value.trim() === '') return EMPTY_VALUE;
+    return value;
+};
+
+const formatDateValue = (value, locale) => {
+    if (!value) return EMPTY_VALUE;
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return EMPTY_VALUE;
+
+    return date.toLocaleDateString(locale, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    });
+};
+
+const getAttendanceBadgeClass = (status) => {
+    if (status === 'Present') return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    if (status === 'Late') return 'bg-amber-50 text-amber-700 border-amber-100';
+    if (status === 'Absent') return 'bg-rose-50 text-rose-700 border-rose-100';
+    return 'bg-slate-50 text-slate-600 border-slate-200';
+};
+
+const getAttendanceTone = (percentage) => {
+    if (percentage >= 75) {
+        return {
+            text: 'text-emerald-600',
+            soft: 'bg-emerald-50 text-emerald-700 border-emerald-100'
+        };
+    }
+
+    if (percentage >= 60) {
+        return {
+            text: 'text-amber-600',
+            soft: 'bg-amber-50 text-amber-700 border-amber-100'
+        };
+    }
+
+    return {
+        text: 'text-rose-600',
+        soft: 'bg-rose-50 text-rose-700 border-rose-100'
+    };
+};
+
+const DetailCard = ({ icon: Icon, label, value, subtitle = null }) => (
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-200">
+                <Icon size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{label}</p>
+                <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-900 whitespace-pre-line">
+                    {formatValue(value)}
+                </p>
+                {subtitle ? (
+                    <p className="mt-1 break-words text-xs font-medium text-slate-500">{subtitle}</p>
+                ) : null}
+            </div>
         </div>
     </div>
 );
 
-// 2. Native Mobile Bottom Sheet for Batch Details
+const MetricCard = ({ label, value, hint, toneClass = 'text-white' }) => (
+    <div className="min-w-0 rounded-3xl border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-sm">
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/60">{label}</p>
+        <p className={`mt-2 break-words text-2xl font-black ${toneClass}`}>{value}</p>
+        <p className="mt-1 break-words text-xs font-semibold text-white/70">{hint}</p>
+    </div>
+);
+
+const SectionCard = ({ icon: Icon, title, action = null, children }) => (
+    <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_24px_55px_-35px_rgba(15,23,42,0.35)] sm:p-6">
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                    <Icon size={18} />
+                </div>
+                <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">{title}</p>
+                </div>
+            </div>
+            {action ? <div className="w-full sm:w-auto">{action}</div> : null}
+        </div>
+        {children}
+    </section>
+);
+
 const BatchDetailModal = ({ isOpen, onClose, batch, room }) => {
     const { t } = useLanguage();
+
     if (!isOpen || !batch) return null;
+
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-6"
             onClick={onClose}
         >
-            {/* Bottom Sheet */}
             <div
-                className="w-full bg-white rounded-t-3xl shadow-2xl max-h-[92vh] flex flex-col animate-in slide-in-from-bottom-full duration-300"
-                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-2xl overflow-hidden rounded-t-[32px] border border-white/40 bg-white shadow-2xl sm:rounded-[32px]"
+                onClick={(event) => event.stopPropagation()}
             >
-                {/* Drag Handle */}
-                <div className="flex justify-center pt-3 pb-2">
-                    <div className="w-14 h-1.5 bg-gray-300 rounded-md"></div>
+                <div className="relative overflow-hidden border-b border-slate-100 px-5 pb-5 pt-6 sm:px-6">
+                    <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-r from-slate-950 via-slate-800 to-indigo-950" />
+                    <div className="absolute inset-x-0 top-0 h-28 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:18px_18px]" />
+
+                    <div className="relative flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/60">{t('Assigned Batch')}</p>
+                            <h3 className="mt-2 break-words text-2xl font-black text-white">{batch.name || t('Batch')}</h3>
+                            <p className="mt-1 break-words text-sm font-medium text-white/70">{batch.course || t('Academic')}</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
                 </div>
 
-                {/* Header */}
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">
-                            {t('Assigned Batch')}
-                        </span>
-                        <h3 className="text-lg font-black text-gray-900 leading-tight">
-                            {batch?.name || t('Batch')}
-                        </h3>
+                <div className="space-y-6 px-5 py-5 sm:px-6">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <DetailCard icon={Home} label={t('Classroom')} value={room} />
+                        <DetailCard icon={School} label={t('Course Type')} value={batch.course || t('Academic')} />
                     </div>
 
-                    <button
-                        onClick={onClose}
-                        className="p-2 bg-gray-100 rounded-md active:scale-90 transition"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
-
-                {/* Scroll Content */}
-                <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
-                    {/* Info Cards */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                {t('Classroom')}
-                            </p>
-                            <p className="text-sm font-semibold text-gray-800 mt-1">
-                                {room || "N/A"}
-                            </p>
-                        </div>
-
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                {t('Course Type')}
-                            </p>
-                            <p className="text-sm font-semibold text-gray-800 mt-1">
-                                {batch?.course || t('Academic')}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Subjects */}
                     <div>
-                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-3">
-                            {t('Batch Subjects')}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            {batch?.subjects?.length ? (
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{t('Batch Subjects')}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {batch.subjects?.length ? (
                                 batch.subjects.map((subject) => (
                                     <span
                                         key={subject}
-                                        className="px-3 py-1.5 bg-blue-50 text-blue-600 text-[11px] font-semibold rounded-md border border-blue-100"
+                                        className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
                                     >
                                         {subject}
                                     </span>
                                 ))
                             ) : (
-                                <p className="text-xs text-gray-400">{t('No subjects assigned')}</p>
+                                <p className="text-sm text-slate-500">{t('No subjects assigned')}</p>
                             )}
                         </div>
                     </div>
-                </div>
-
-                {/* Bottom Button */}
-                <div className="p-4 border-t border-gray-100 bg-white pb-safe">
-                    <button
-                        onClick={onClose}
-                        className="w-full p-3.5 text-white text-sm font-semibold rounded-xl bg-gradient-to-r from-gray-800 to-black active:scale-95 transition-all"
-                    >
-                        {t('Close')}
-                    </button>
                 </div>
             </div>
         </div>
@@ -127,8 +183,8 @@ const StudentProfile = () => {
     const navigate = useNavigate();
     const { t, language } = useLanguage();
     const apiBaseUrl = api.defaults.baseURL || '/api';
+    const locale = language === 'hi' ? 'hi-IN' : 'en-GB';
     const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
     const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
     const token = localStorage.getItem('studentToken');
 
@@ -163,13 +219,12 @@ const StudentProfile = () => {
         onError: () => setError(t('Failed to load profile data.'))
     });
 
-
     if (isLoading) {
         return (
             <StudentLayout title="Profile">
-                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                    <RefreshCcw className="animate-spin text-blue-500" size={28} />
-                    <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">{t('Loading Profile...')}</p>
+                <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+                    <RefreshCcw className="animate-spin text-slate-700" size={28} />
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">{t('Loading Profile...')}</p>
                 </div>
             </StudentLayout>
         );
@@ -179,18 +234,18 @@ const StudentProfile = () => {
         return (
             <StudentLayout title="Profile">
                 <div className="px-4 py-10">
-                    <div className="bg-white rounded-md border border-rose-100 shadow-sm p-5 space-y-3">
+                    <div className="space-y-3 rounded-3xl border border-rose-100 bg-white p-5 shadow-sm">
                         <div className="flex items-center gap-3 text-rose-600">
                             <AlertTriangle size={18} />
                             <p className="text-sm font-bold">{t('Profile data could not be loaded.')}</p>
                         </div>
-                        <p className="text-xs text-gray-600 leading-relaxed">
+                        <p className="text-xs leading-relaxed text-slate-600">
                             {error || t('This build is trying to reach {{url}}. If you are using the local backend, keep it running and connect the phone to the same Wi-Fi.', { url: apiBaseUrl })}
                         </p>
                         <button
                             type="button"
                             onClick={() => window.location.reload()}
-                            className="w-full h-11 bg-gray-900 text-white text-xs font-black uppercase tracking-widest rounded-md"
+                            className="h-11 w-full rounded-2xl bg-slate-900 text-xs font-black uppercase tracking-[0.24em] text-white"
                         >
                             {t('Retry')}
                         </button>
@@ -200,232 +255,221 @@ const StudentProfile = () => {
         );
     }
 
-    const attendanceSummary = student.attendanceSummary || { total: 0, present: 0, absent: 0, late: 0, percentage: 0 };
+    const attendanceSummary = student.attendanceSummary || {
+        total: 0,
+        present: 0,
+        absent: 0,
+        late: 0,
+        percentage: 0
+    };
     const attendanceRecent = Array.isArray(student.attendanceRecent) ? student.attendanceRecent : [];
-    const attendanceTone = attendanceSummary.percentage >= 75 ? 'text-emerald-500' : attendanceSummary.percentage >= 60 ? 'text-amber-500' : 'text-rose-500';
-
-    const getAttendanceBadgeClass = (status) => {
-        if (status === 'Present') return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-        if (status === 'Late') return 'bg-amber-50 text-amber-600 border-amber-100';
-        if (status === 'Absent') return 'bg-rose-50 text-rose-600 border-rose-100';
-        return 'bg-gray-50 text-gray-500 border-gray-200';
-    };
-
-    const formatAttendanceDate = (value) => {
-        if (!value) return '-';
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return '-';
-        return date.toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-GB', { day: '2-digit', month: 'short' });
-    };
-
+    const attendanceTone = getAttendanceTone(attendanceSummary.percentage || 0);
+    const batchSubjects = Array.isArray(student.fullBatchData?.subjects) ? student.fullBatchData.subjects : [];
+    const initials = String(student.name || 'S')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() || '')
+        .join('') || 'S';
 
     return (
         <StudentLayout title="Profile">
-            <div className="w-full max-w-md mx-auto pb-24 sm:pb-12 animate-in fade-in duration-300 bg-gray-50 min-h-screen">
-                
-<div className="pt-12 pb-6 px-6 mb-6 flex flex-col items-center relative border border-gray-200 rounded-xl shadow-sm bg-white overflow-hidden">
-    
-    {/* Solid Blue Top Pattern/Header */}
-    <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-black to-indigo-950"></div>
-    
-    {/* Optional: Blue background ke upar halka sa dot pattern */}
-    <div className="absolute top-0 left-0 w-full h-24 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 2px, #000000 0px)', backgroundSize: '16px 16px' }}></div>
+            <div className="mx-auto max-w-6xl space-y-6 px-4 pb-24 pt-2 sm:px-6 sm:pb-10">
+                <section className="relative overflow-hidden rounded-[32px] border border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 shadow-[0_35px_80px_-40px_rgba(15,23,42,0.45)]">
+                    <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:18px_18px]" />
 
-    {/* Main Content (Image ko rounded-full aur border diya hai taaki blue par ubhar kar aaye) */}
-    <div className="relative z-10 h-24 w-24 rounded-full flex items-center justify-center bg-white text-blue-800 text-4xl font-black overflow-hidden mb-3 border-4 border-white shadow-md">
-        {student.profileImage ? (
-            <img src={student.profileImage} alt={student.name} className="h-full w-full object-cover" />
-        ) : (
-            student.name[0].toUpperCase()
-        )}
-    </div>
-    
-    {/* Name aur Blue Tick */}
-    <div className="relative z-10 flex items-center gap-1.5 mt-1">
-        <h2 className="text-xl font-black text-gray-900 tracking-tight text-center">{student.name}</h2>
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-        </svg>
-    </div>
+                    <div className="relative px-5 pb-5 pt-6 sm:px-8 sm:pb-8 sm:pt-8">
+                        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+                            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                                <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-[28px] border-4 border-white/80 bg-white text-3xl font-black text-slate-900 shadow-[0_20px_40px_-20px_rgba(15,23,42,0.65)]">
+                                    {student.profileImage ? (
+                                        <img src={student.profileImage} alt={student.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                        initials
+                                    )}
+                                </div>
 
-    {/* Roll No Badge */}
-    <div className="relative z-10 flex items-center gap-2 mt-2 px-3 py-1 rounded-full border border-gray-200 bg-gray-50">
-        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{student.rollNo}</p>
-    </div>
-
-</div>
-
-                {/* 2. Enrollment Horizontal Scroll */}
-                <div className="px-4 mb-6">
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                        <School size={16} className="text-blue-500" />
-                        <span className="text-[11px] font-black text-gray-800 uppercase tracking-widest">{t('Enrollment')}</span>
-                    </div>
-                    <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 hide-scrollbar snap-x">
-                        {/* Class Card */}
-                        <div className="min-w-[140px] bg-white p-4 rounded-md border border-gray-100 shadow-sm snap-start shrink-0">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{t('Class / Level')}</p>
-                            <p className="text-sm font-bold text-gray-800 truncate">{student.className || t('Not Assigned')}</p>
-                        </div>
-                        {/* Batch Card (Clickable) */}
-                        <div 
-                            onClick={() => setIsBatchModalOpen(true)}
-                            className="min-w-[140px] bg-blue-50/50 p-4 rounded-md border border-blue-100 shadow-sm snap-start shrink-0 active:scale-[0.98] transition-transform cursor-pointer"
-                        >
-                            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">{t('Active Batch')}</p>
-                            <div className="flex items-center gap-1.5 text-blue-600">
-                                <p className="text-sm font-bold truncate">{student.batchName}</p>
-                                <ExternalLink size={12} className="shrink-0" />
-                            </div>
-                        </div>
-                        {/* Admission Card */}
-                        <div className="min-w-[140px] bg-white p-4 rounded-md border border-gray-100 shadow-sm snap-start shrink-0">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{t('Admission')}</p>
-                            <p className="text-sm font-bold text-gray-800 truncate">
-                                {student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-GB') : '—'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 3. Identity Grid (2 Column Mobile) */}
-                <div className="px-2 mb-6">
-
-    <div className="flex items-center gap-2 mb-3">
-        <User size={16} className="text-indigo-500" />
-        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
-            {t('Personal Details')}
-        </h3>
-    </div>
-
-    <div className="overflow-hidden bg-white rounded-md shadow-sm border border-gray-200">
-    <table className="w-full text-sm text-left">
-        <tbody className="divide-y divide-gray-100">
-            
-            <tr className="odd:bg-white even:bg-slate-50 hover:bg-blue-50/60 transition-colors">
-                <td className="font-semibold text-gray-600 py-3.5 px-5 w-1/3 sm:w-48">{t('Date of Birth')}</td>
-                <td className="py-3.5 px-5 text-gray-900 font-medium">
-                    {student.dob ? new Date(student.dob).toLocaleDateString('en-GB') : '—'}
-                </td>
-            </tr>
-
-            <tr className="odd:bg-white even:bg-slate-50 hover:bg-blue-50/60 transition-colors">
-                <td className="font-semibold text-gray-600 py-3.5 px-5">{t('Gender')}</td>
-                <td className="py-3.5 px-5 text-gray-900 font-medium">{student.gender || '—'}</td>
-            </tr>
-
-            <tr className="odd:bg-white even:bg-slate-50 hover:bg-blue-50/60 transition-colors">
-                <td className="font-semibold text-gray-600 py-3.5 px-5">{t('Contact')}</td>
-                <td className="py-3.5 px-5 text-gray-900 font-medium">{student.contact || '—'}</td>
-            </tr>
-
-            <tr className="odd:bg-white even:bg-slate-50 hover:bg-blue-50/60 transition-colors">
-                <td className="font-semibold text-gray-600 py-3.5 px-5">{t('Email')}</td>
-                <td className="py-3.5 px-5 text-gray-900 font-medium break-all">{student.email || '—'}</td>
-            </tr>
-
-            <tr className="odd:bg-white even:bg-slate-50 hover:bg-blue-50/60 transition-colors">
-                <td className="font-semibold text-gray-600 py-3.5 px-5">{t('Address')}</td>
-                <td className="py-3.5 px-5 text-gray-900 font-medium">{student.address || '—'}</td>
-            </tr>
-
-        </tbody>
-    </table>
-</div>
-
-</div>
-<div className="px-2 mb-6">
-
-    <div className="flex items-center gap-2 mb-3">
-        <Users size={16} className="text-indigo-500" />
-        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
-            {t('Parents / Guardians')}
-        </h3>
-    </div>
-
-   <div className="overflow-hidden bg-white rounded-xl shadow-sm border border-gray-200">
-    <table className="w-full text-sm text-left">
-        <tbody className="divide-y divide-gray-100">
-
-            <tr className="odd:bg-white even:bg-slate-50 hover:bg-blue-50/60 transition-colors">
-                <td className="font-semibold text-gray-600 py-3.5 px-5 w-1/3 sm:w-48">{t('Father Name')}</td>
-                <td className="py-3.5 px-5 text-gray-900 font-medium">{student.fatherName || '—'}</td>
-            </tr>
-
-            <tr className="odd:bg-white even:bg-slate-50 hover:bg-blue-50/60 transition-colors">
-                <td className="font-semibold text-gray-600 py-3.5 px-5">{t('Mother Name')}</td>
-                <td className="py-3.5 px-5 text-gray-900 font-medium">{student.motherName || '—'}</td>
-            </tr>
-
-            <tr className="odd:bg-white even:bg-slate-50 hover:bg-blue-50/60 transition-colors">
-                <td className="font-semibold text-gray-600 py-3.5 px-5">{t('Guardian Contact')}</td>
-                <td className="py-3.5 px-5 text-gray-900 font-medium">{student.parentContact || '—'}</td>
-            </tr>
-
-        </tbody>
-    </table>
-</div>
-
-</div>
-
-                {/* 4. Mobile Attendance Overview */}
-                <div className="px-4 mb-6 space-y-3">
-                    <div className="flex items-center gap-2 px-1">
-                        <Award size={16} className="text-emerald-500" />
-                        <h3 className="text-[11px] font-black text-gray-800 uppercase tracking-widest">{t('Attendance Stats')}</h3>
-                    </div>
-                    
-                    <div className="bg-white rounded-md border border-gray-100 shadow-sm overflow-hidden">
-                        {/* Summary Block */}
-                        <div className="p-5 flex items-center justify-between border-b border-gray-50 bg-gray-50/30">
-                            <div>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('Overall Present')}</p>
-                                <p className="text-xs font-semibold text-gray-600 mt-0.5">{attendanceSummary.present || 0} {t('out of')} {attendanceSummary.total || 0} {t('days')}</p>
-                            </div>
-                            <div className={`text-3xl font-black ${attendanceTone}`}>{attendanceSummary.percentage || 0}%</div>
-                        </div>
-                        {/* 3-way Split */}
-                        <div className="grid grid-cols-3 divide-x divide-gray-100">
-                            <div className="p-4 text-center bg-emerald-50/30">
-                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">{t('Present')}</p>
-                                <p className="text-xl font-black text-emerald-700">{attendanceSummary.present || 0}</p>
-                            </div>
-                            <div className="p-4 text-center bg-rose-50/30">
-                                <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest mb-1">{t('Absent')}</p>
-                                <p className="text-xl font-black text-rose-700">{attendanceSummary.absent || 0}</p>
-                            </div>
-                            <div className="p-4 text-center bg-amber-50/30">
-                                <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">{t('Late')}</p>
-                                <p className="text-xl font-black text-amber-700">{attendanceSummary.late || 0}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Recent List */}
-                    {attendanceRecent.length > 0 && (
-                        <div className="space-y-2 mt-4">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 mb-2">{t('Recent Records')}</p>
-                            {attendanceRecent.map((item, idx) => {
-                                const subject = item.subjectId?.name || item.subjectName || 'Subject';
-                                return (
-                                    <div key={item._id || idx} className="flex items-center justify-between bg-white border border-gray-100 rounded-md px-4 py-3 shadow-sm">
-                                        <div className="min-w-0 pr-2">
-                                            <p className="text-sm font-semibold text-gray-800 truncate">{subject}</p>
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
-                                                {formatAttendanceDate(item.attendanceDate)}
-                                            </p>
-                                        </div>
-                                        <span className={`shrink-0 px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-md border ${getAttendanceBadgeClass(item.status)}`}>
-                                            {item.status || '—'}
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/60">{t('My Profile')}</p>
+                                    <h1 className="mt-2 break-words text-3xl font-black tracking-tight text-white sm:text-4xl">
+                                        {student.name}
+                                    </h1>
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/85 backdrop-blur-sm">
+                                            <CreditCard size={14} />
+                                            <span className="break-all">{student.rollNo || EMPTY_VALUE}</span>
+                                        </span>
+                                        <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/85 backdrop-blur-sm">
+                                            <School size={14} />
+                                            <span className="break-words">{student.className || t('Not Assigned')}</span>
+                                        </span>
+                                        <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/85 backdrop-blur-sm">
+                                            <GraduationCap size={14} />
+                                            <span className="break-words">{student.batchName || t('Not Assigned')}</span>
                                         </span>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                                    <div className="mt-4 grid gap-2 text-sm font-medium text-white/75 sm:flex sm:flex-wrap sm:gap-3">
+                                        <span className="inline-flex min-w-0 items-start gap-2">
+                                            <Mail size={15} />
+                                            <span className="break-all">{formatValue(student.email)}</span>
+                                        </span>
+                                        <span className="inline-flex min-w-0 items-start gap-2">
+                                            <Phone size={15} />
+                                            <span className="break-all">{formatValue(student.contact)}</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
 
+                            <div className="grid gap-3 sm:grid-cols-3 xl:w-[420px]">
+                                <MetricCard
+                                    label={t('Attendance')}
+                                    value={`${attendanceSummary.percentage || 0}%`}
+                                    hint={`${attendanceSummary.present || 0}/${attendanceSummary.total || 0} ${t('Present')}`}
+                                    toneClass="text-white"
+                                />
+                                <MetricCard
+                                    label={t('Active Batch')}
+                                    value={formatValue(student.batchName)}
+                                    hint={formatValue(student.className)}
+                                />
+                                <MetricCard
+                                    label={t('Classroom')}
+                                    value={formatValue(student.roomAllocation)}
+                                    hint={`${batchSubjects.length} ${t('Subjects')}`}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {error ? (
+                    <div className="flex items-center gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                        <AlertTriangle size={16} />
+                        <span>{error}</span>
+                    </div>
+                ) : null}
+
+                <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                    <div className="space-y-6">
+                        <SectionCard icon={User} title={t('Personal Details')}>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <DetailCard icon={Calendar} label={t('Date of Birth')} value={formatDateValue(student.dob, locale)} />
+                                <DetailCard icon={User} label={t('Gender')} value={student.gender} />
+                                <DetailCard icon={Phone} label={t('Contact')} value={student.contact} />
+                                <DetailCard icon={Mail} label={t('Email')} value={student.email} />
+                                <DetailCard icon={MapPin} label={t('Address')} value={student.address} />
+                                <DetailCard icon={Calendar} label={t('Admission')} value={formatDateValue(student.admissionDate, locale)} />
+                            </div>
+                        </SectionCard>
+
+                        <SectionCard icon={Users} title={t('Parents / Guardians')}>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <DetailCard icon={Users} label={t('Father Name')} value={student.fatherName} />
+                                <DetailCard icon={Users} label={t('Mother Name')} value={student.motherName} />
+                                <DetailCard icon={Phone} label={t('Guardian Contact')} value={student.parentContact} />
+                                <DetailCard icon={Home} label={t('Address')} value={student.address} />
+                            </div>
+                        </SectionCard>
+                    </div>
+
+                    <div className="space-y-6">
+                        <SectionCard
+                            icon={GraduationCap}
+                            title={t('Enrollment')}
+                            action={(
+                                <button
+                                    type="button"
+                                    onClick={() => setIsBatchModalOpen(true)}
+                                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 sm:w-auto"
+                                >
+                                    <ExternalLink size={14} />
+                                    {t('Active Batch')}
+                                </button>
+                            )}
+                        >
+                            <div className="grid gap-3">
+                                <DetailCard icon={School} label={t('Class / Level')} value={student.className || t('Not Assigned')} />
+                                <DetailCard icon={GraduationCap} label={t('Active Batch')} value={student.batchName || t('Not Assigned')} />
+                                <DetailCard icon={Home} label={t('Classroom')} value={student.roomAllocation} />
+                            </div>
+
+                            <div className="mt-5">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{t('Batch Subjects')}</p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {batchSubjects.length > 0 ? (
+                                        batchSubjects.map((subject) => (
+                                            <span
+                                                key={subject}
+                                                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                                            >
+                                                {subject}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-slate-500">{t('No subjects assigned')}</p>
+                                    )}
+                                </div>
+                            </div>
+                        </SectionCard>
+
+                        <SectionCard icon={Award} title={t('Attendance Stats')}>
+                            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">{t('Overall Present')}</p>
+                                        <p className="mt-2 break-words text-sm font-semibold text-slate-600">
+                                            {attendanceSummary.present || 0} {t('out of')} {attendanceSummary.total || 0} {t('days')}
+                                        </p>
+                                    </div>
+                                    <div className={`inline-flex w-fit rounded-full border px-4 py-2 text-3xl font-black ${attendanceTone.soft}`}>
+                                        {attendanceSummary.percentage || 0}%
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+                                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-center">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">{t('Present')}</p>
+                                        <p className="mt-2 text-xl font-black text-emerald-700">{attendanceSummary.present || 0}</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-rose-100 bg-rose-50 p-3 text-center">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600">{t('Absent')}</p>
+                                        <p className="mt-2 text-xl font-black text-rose-700">{attendanceSummary.absent || 0}</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-amber-100 bg-amber-50 p-3 text-center">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600">{t('Late')}</p>
+                                        <p className="mt-2 text-xl font-black text-amber-700">{attendanceSummary.late || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {attendanceRecent.length > 0 ? (
+                                <div className="mt-5 space-y-3">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{t('Recent Records')}</p>
+                                    {attendanceRecent.map((item, index) => {
+                                        const subject = item.subjectId?.name || item.subjectName || 'Subject';
+                                        return (
+                                            <div
+                                                key={item._id || index}
+                                                className="flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                            >
+                                                <div className="min-w-0 w-full sm:w-auto">
+                                                    <p className="break-words text-sm font-semibold text-slate-900 sm:truncate">{subject}</p>
+                                                    <p className="mt-1 text-xs font-medium text-slate-500">
+                                                        {formatDateValue(item.attendanceDate, locale)}
+                                                    </p>
+                                                </div>
+                                                <span className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${getAttendanceBadgeClass(item.status)}`}>
+                                                    {t(item.status || EMPTY_VALUE)}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : null}
+                        </SectionCard>
+                    </div>
+                </div>
 
                 <BatchDetailModal
                     isOpen={isBatchModalOpen}
