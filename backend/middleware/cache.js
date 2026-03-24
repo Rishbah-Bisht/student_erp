@@ -33,7 +33,7 @@ const cacheMiddleware = (ttlSeconds = defaultTtlSeconds, options = {}) => async 
     if (req.method !== 'GET') return next();
 
     const { prefix = 'cache', varyByUser = true } = options;
-    const userKey = varyByUser ? (req.user?.id || 'public') : 'public';
+    const userKey = varyByUser ? (req.user?.id || req.user?._id || 'public') : 'public';
     const key = buildKey(prefix, userKey, req.originalUrl);
 
     try {
