@@ -48,30 +48,42 @@ app.use(globalLimiter);
 
 // Health Check
 app.get('/api/health', async (req, res) => {
-    const { getDatabaseHealth } = require('./config/database');
+    const { getDatabaseHealth, connectToDatabase } = require('./config/database');
     const postgres = require('./config/postgres');
     
-    const database = getDatabaseHealth();
+    let database = getDatabaseHealth();
+    if (!database.isHealthy) {
+        try {
+            await connectToDatabase();
+            database = getDatabaseHealth();
+        } catch (mErr) {
+            console.error('Mongo Health Fix failed:', mErr.message);
+        }
+    }
+
     let postgresStatus = 'unknown';
-    
+    let postgresError = null;
     try {
         await postgres.query('SELECT NOW()');
         postgresStatus = 'connected';
     } catch (err) {
-        postgresStatus = 'error: ' + err.message;
+        postgresStatus = 'error';
+        postgresError = err.message;
+        console.error('Postgres Health Check Error:', err);
     }
 
     res.json({
         status: 'ok',
         mongodb: database.status,
         postgres: postgresStatus,
+        postgresDetail: postgresError,
         redis: (require('./middleware/cache').redis) ? 'connected' : 'disabled',
         lastConnectedAt: database.lastConnectedAt,
-        lastDatabaseError: database.lastError,
         env: {
             MONGODB_URI: process.env.MONGODB_URI ? 'set' : 'missing',
             POSTGRES_URI: process.env.POSTGRES_URI ? 'set' : 'missing',
-            JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'missing'
+            JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'missing',
+            NODE_ENV: process.env.NODE_ENV
         }
     });
 });
