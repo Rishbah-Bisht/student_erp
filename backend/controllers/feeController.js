@@ -120,9 +120,15 @@ exports.getStudentFees = async (req, res) => {
 
     } catch (error) {
         console.error('CRITICAL ERROR in getStudentFees:', error);
+        console.error('Stack Trace:', error.stack);
         // Expose real error message in debug response to help identifying cause on Vercel
         const message = process.env.NODE_ENV === 'development' ? error.message : 'Unable to fetch fees right now.';
-        res.status(500).json({ success: false, message, debug: error.message });
+        res.status(500).json({ 
+            success: false, 
+            message, 
+            debug: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+        });
     }
 };
 
