@@ -13,6 +13,22 @@ const { sendDatabaseUnavailable } = require('./utils/apiError');
 
 const app = express();
 
+// Log capture for remote debugging
+const logBuffer = [];
+const captureLog = (type, args) => {
+    const msg = `[${new Date().toISOString()}] [${type}] ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`;
+    logBuffer.push(msg);
+    if (logBuffer.length > 100) logBuffer.shift();
+};
+const originalLog = console.log;
+const originalError = console.error;
+console.log = (...args) => { captureLog('LOG', args); originalLog(...args); };
+console.error = (...args) => { captureLog('ERROR', args); originalError(...args); };
+
+app.get('/api/debug/logs', (req, res) => {
+    res.type('text/plain').send(logBuffer.join('\n'));
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
