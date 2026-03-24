@@ -3,10 +3,22 @@ const DATABASE_ERROR_PATTERNS = [
     /server selection/i,
     /topology.*destroyed/i,
     /ECONNREFUSED/i,
+    /ENOTFOUND/i,
+    /EHOSTUNREACH/i,
     /MongoNetworkError/i,
     /MongoServerSelectionError/i,
     /connection .* closed/i,
-    /Client must be connected/i
+    /Client must be connected/i,
+    /Tenant or user not found/i,
+    /password authentication failed/i,
+    /connection terminated unexpectedly/i,
+    /no pg_hba\.conf entry/i,
+    /the database system is starting up/i,
+    /too many clients already/i,
+    /\bXX000\b/i,
+    /\b57P03\b/i,
+    /\b08006\b/i,
+    /getaddrinfo/i
 ];
 
 const isDatabaseUnavailableError = (error) => {

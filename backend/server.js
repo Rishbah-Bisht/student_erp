@@ -12,6 +12,7 @@ const { connectToDatabase, getDatabaseHealth } = require('./config/database');
 const { sendDatabaseUnavailable } = require('./utils/apiError');
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Log capture for remote debugging
 const logBuffer = [];
