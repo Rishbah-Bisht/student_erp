@@ -57,6 +57,7 @@ app.get('/api/health', (req, res) => {
         lastDatabaseError: database.lastError,
         env: {
             MONGODB_URI: process.env.MONGODB_URI ? 'set' : 'missing',
+            POSTGRES_URI: process.env.POSTGRES_URI ? 'set' : 'missing',
             JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'missing'
         }
     });
