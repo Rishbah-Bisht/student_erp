@@ -94,7 +94,7 @@ const Leaderboard = () => {
 
     return (
         <StudentLayout title="Hall of Fame">
-            <div className="max-w-4xl mx-auto px-4 pb-20 pt-4">
+            <div className="max-w-4xl mx-auto p0">
 
                 {/* Fixed Header Card */}
                 <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#1e293b] to-[#0f172a] p-8 text-white shadow-xl mb-8">

@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, User, Trophy, BookOpen,
-    FileText, Wallet, Award, Bell, BadgeCheck,
+    FileText, Wallet, Award, Bell,
     LogOut, Menu, X, GraduationCap, ShieldAlert,
-    Settings, ArrowLeft
+    Settings, ArrowLeft, Sparkles
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageToggleButton from './LanguageToggleButton';
@@ -23,7 +23,6 @@ const NAV_ITEMS = [
         section: 'ACADEMICS',
         items: [
             { to: '/student/dashboard?tab=subjects', match: 'subjects', icon: BookOpen, label: 'Subjects' },
-            { to: '/student/dashboard?tab=attendance', match: 'attendance', icon: BadgeCheck, label: 'Attendance' },
             { to: '/student/dashboard?tab=results', match: 'results', icon: Award, label: 'Results' },
             { to: '/student/leaderboard', match: '/student/leaderboard', icon: Trophy, label: 'Leaderboard' },
         ]
@@ -41,12 +40,12 @@ const NAV_ITEMS = [
 const MOBILE_NAV_ITEMS = [
     { to: '/student/dashboard?tab=home', match: 'home', icon: LayoutDashboard, label: 'Home' },
     { to: '/student/dashboard?tab=subjects', match: 'subjects', icon: BookOpen, label: 'Subjects' },
-    { to: '/student/dashboard?tab=attendance', match: 'attendance', icon: BadgeCheck, label: 'Attend' },
     { to: '/student/dashboard?tab=results', match: 'results', icon: Award, label: 'Results' },
-    { to: '/student/dashboard?tab=fees', match: 'fees', icon: Wallet, label: 'Fees' }
+    { to: '/student/dashboard?tab=fees', match: 'fees', icon: Wallet, label: 'Fees' },
+    { to: '/student/profile', match: 'profile', icon: User, label: 'My Profile' }
 ];
 
-const StudentLayout = ({ children, title, backUrl }) => {
+const StudentLayout = ({ children, title, backUrl, useHistoryBack = false, hideMobileNav = false }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { t } = useLanguage();
@@ -87,6 +86,20 @@ const StudentLayout = ({ children, title, backUrl }) => {
         return location.pathname === '/student/dashboard' && currentTab === match;
     };
 
+    const handleBack = () => {
+        if (useHistoryBack && window.history.length > 1) {
+            navigate(-1);
+            return;
+        }
+
+        if (backUrl) {
+            navigate(backUrl);
+            return;
+        }
+
+        navigate('/student/dashboard?tab=home');
+    };
+
     return (
         <div className={`erp-shell ${mini ? 'sidebar-mini' : ''}`}>
             {/* Mobile Overlay */}
@@ -100,11 +113,14 @@ const StudentLayout = ({ children, title, backUrl }) => {
             {/* Sidebar */}
             <nav className={`sidebar ${mini ? 'mini' : ''} ${mobileOpen ? 'open' : ''}`}>
                 <div className="sb-brand">
+                    <div className="sb-logo" aria-hidden="true">
+                        <Sparkles size={16} />
+                    </div>
 
                     {(!mini || mobileOpen) && (
                         <div className="sb-brand-text">
                             <div className="sb-name">{t('Institute')}</div>
-                            <div className="sb-code">Student Erp System</div>
+                            <div className="sb-code">Student ERP System</div>
                             <div className="sb-code">{t('Roll')}: {student.rollNo || 'N/A'}</div>
                         </div>
                     )}
@@ -113,14 +129,19 @@ const StudentLayout = ({ children, title, backUrl }) => {
                 <div className="sb-nav">
                     {NAV_ITEMS.map(group => (
                         <div key={group.section} className="sb-group">
-                            {(!mini || mobileOpen) && <div className="sb-section-label">{t(group.section)}</div>}
+                            {(!mini || mobileOpen) && (
+                                <div className="sb-section-label-wrap">
+                                    <span className="sb-section-dot" />
+                                    <div className="sb-section-label">{t(group.section)}</div>
+                                </div>
+                            )}
                             {group.items.map((item) => (
                                 <Link
                                     key={item.to} to={item.to}
                                     className={`sb-item ${isActiveRoute(item.match) ? 'active' : ''}`}
                                     onClick={() => setMobileOpen(false)}
                                 >
-                                    <span className="sb-item-icon"><item.icon size={18} /></span>
+                                    <span className="sb-item-icon"><item.icon size={17} /></span>
                                     {(!mini || mobileOpen) && <span className="sb-item-label">{t(item.label)}</span>}
                                 </Link>
                             ))}
@@ -150,7 +171,7 @@ const StudentLayout = ({ children, title, backUrl }) => {
                         {backUrl ? (
                             <button
                                 className="tb-hamburger"
-                                onClick={() => navigate(backUrl)}
+                                onClick={handleBack}
                             >
                                 <ArrowLeft size={20} />
                             </button>
@@ -191,57 +212,66 @@ const StudentLayout = ({ children, title, backUrl }) => {
             </div>
 
             {/* Mobile Bottom Navigation */}
-            <nav
-                className="fixed bottom-2 left-1/2 -translate-x-1/2 w-[94%] max-w-lg z-[150] md:hidden"
-                aria-label="Primary"
-            >
-                <div className="relative bg-white/80 backdrop-blur-2xl border border-white/40 shadow-[0_12px_40px_rgba(0,0,0,0.12)] rounded-[28px] px-2 py-2 flex items-center justify-around overflow-hidden">
-                    {MOBILE_NAV_ITEMS.map(({ to, match, icon: Icon, label }) => {
-                        const active = isActiveRoute(match);
+            {!hideMobileNav && (
+                <nav
+                    className="fixed bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[95%] max-w-lg z-[150] md:hidden"
+                    aria-label="Primary"
+                >
+                    <div className="relative overflow-hidden rounded-[28px] border border-blue-200/70 bg-white/90 px-2 py-1.5 backdrop-blur-2xl shadow-[0_16px_42px_rgba(30,64,175,0.22)]">
+                        <div className="pointer-events-none absolute inset-x-10 -top-10 h-16 rounded-full bg-gradient-to-r from-blue-200/70 via-blue-300/65 to-indigo-300/65 blur-2xl" />
+                        <div
+                            className="relative grid items-center gap-1"
+                            style={{ gridTemplateColumns: `repeat(${MOBILE_NAV_ITEMS.length}, minmax(0, 1fr))` }}
+                        >
+                        {MOBILE_NAV_ITEMS.map(({ to, match, icon: Icon, label }) => {
+                            const active = isActiveRoute(match);
 
-                        return (
-                            <Link
-                                key={to}
-                                to={to}
-                                className={`relative flex flex-col items-center justify-center py-2 px-1 min-w-[60px] transition-colors duration-300 z-10 no-underline ${active ? 'text-emerald-600' : 'text-slate-400'
-                                    }`}
-                            >
-                                {/* Active Magic Background */}
-                                {active && (
-                                    <motion.div
-                                        layoutId="activePill"
-                                        className="absolute inset-0 bg-emerald-50 rounded-[20px] -z-10"
-                                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                                    />
-                                )}
-
-                                {/* Icon Animation */}
-                                <motion.div
-                                    animate={{ scale: active ? 1.15 : 1, y: active ? -2 : 0 }}
-                                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                            return (
+                                <Link
+                                    key={to}
+                                    to={to}
+                                    className={`relative flex flex-col items-center justify-center py-1 px-1 min-w-[56px] transition-colors duration-300 z-10 no-underline rounded-2xl ${active ? 'text-blue-700' : 'text-slate-400 hover:text-blue-600'
+                                        }`}
                                 >
-                                    <Icon size={19} strokeWidth={active ? 2.5 : 2} />
-                                </motion.div>
+                                    {/* Active Magic Background */}
+                                    {active && (
+                                        <motion.div
+                                            layoutId="activePill"
+                                            className="absolute inset-0 rounded-2xl bg-gradient-to-b from-blue-50 to-blue-100/70 -z-10"
+                                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                                        />
+                                    )}
 
-                                {/* Label */}
-                                <span className={`text-[10px] font-bold mt-1 uppercase tracking-wider transition-opacity duration-300 ${active ? 'opacity-100' : 'opacity-60'
-                                    }`}>
-                                    {t(label)}
-                                </span>
-
-                                {/* Bottom Dot Indicator */}
-                                {active && (
+                                    {/* Icon Animation */}
                                     <motion.div
-                                        layoutId="activeDot"
-                                        className="absolute -bottom-1 w-4 h-1 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                                    />
-                                )}
-                            </Link>
-                        );
-                    })}
-                </div>
-            </nav>
+                                        className={`flex h-7 w-7 items-center justify-center rounded-xl ${active ? 'bg-white shadow-sm shadow-blue-100' : ''}`}
+                                        animate={{ scale: active ? 1.08 : 1, y: active ? -1 : 0 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                                    >
+                                        <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+                                    </motion.div>
+
+                                    {/* Label */}
+                                    <span className={`text-[9px] font-bold mt-0.5 tracking-wide transition-opacity duration-300 ${active ? 'opacity-100' : 'opacity-75'
+                                        }`}>
+                                        {t(label)}
+                                    </span>
+
+                                    {/* Bottom Dot Indicator */}
+                                    {active && (
+                                        <motion.div
+                                            layoutId="activeDot"
+                                            className="absolute -bottom-1 h-1 w-5 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.55)]"
+                                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                                        />
+                                    )}
+                                </Link>
+                            );
+                        })}
+                        </div>
+                    </div>
+                </nav>
+            )}
         </div>
     );
 };

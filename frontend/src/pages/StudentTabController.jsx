@@ -3,7 +3,6 @@ import { useSearchParams, Navigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 
 import StudentDashboard from './StudentDashboard';
-import StudentAttendance from './StudentAttendance';
 import StudentFees from './StudentFees';
 import StudentResults from './StudentResults';
 import StudentSubjects from './StudentSubjects';
@@ -19,8 +18,6 @@ const StudentTabController = () => {
         switch (tab) {
             case 'home':
                 return { title: t('Dashboard'), component: <StudentDashboard /> };
-            case 'attendance':
-                return { title: t('Attendance'), component: <StudentAttendance /> };
             case 'fees':
                 return { title: t('Fees & Payments'), component: <StudentFees /> };
             case 'results':

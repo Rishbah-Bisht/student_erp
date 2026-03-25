@@ -9,7 +9,7 @@ const feeRoutes = require('./routes/feeRoutes');
 const resultRoutes = require('./routes/resultRoutes');
 const { redis } = require('./middleware/cache');
 const { connectToDatabase, getDatabaseHealth } = require('./config/database');
-const { sendDatabaseUnavailable } = require('./utils/apiError');
+const { sendApiError } = require('./utils/apiError');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -66,7 +66,6 @@ app.use(globalLimiter);
 // Health Check
 app.get('/api/health', async (req, res) => {
     const { getDatabaseHealth, connectToDatabase } = require('./config/database');
-    const postgres = require('./config/postgres');
     
     let database = getDatabaseHealth();
     if (!database.isHealthy) {
@@ -78,50 +77,23 @@ app.get('/api/health', async (req, res) => {
         }
     }
 
-    let postgresStatus = 'unknown';
-    let postgresError = null;
-    try {
-        await postgres.query('SELECT NOW()');
-        postgresStatus = 'connected';
-    } catch (err) {
-        postgresStatus = 'error';
-        postgresError = err.message;
-        console.error('Postgres Health Check Error:', err);
-    }
-
     res.json({
         status: 'ok',
         mongodb: database.status,
-        postgres: postgresStatus,
-        postgresDetail: postgresError,
         redis: (require('./middleware/cache').redis) ? 'connected' : 'disabled',
         lastConnectedAt: database.lastConnectedAt,
         env: {
             MONGODB_URI: process.env.MONGODB_URI ? 'set' : 'missing',
-            POSTGRES_URI: process.env.POSTGRES_URI ? 'set' : 'missing',
             JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'missing',
             NODE_ENV: process.env.NODE_ENV
         }
     });
 });
 
-const ensureDatabase = async (req, res, next) => {
-    try {
-        await connectToDatabase();
-        next();
-    } catch (error) {
-        console.error('[database.ensureDatabase]', {
-            path: req.originalUrl,
-            method: req.method,
-            message: error.message
-        });
 
-        sendDatabaseUnavailable(res);
-    }
-};
 
 // Routes
-app.use('/api', ensureDatabase);
+// app.use('/api', ensureDatabase); // Remove ensureDatabase if it's Postgres specific or redundant with connectToDatabase
 app.use('/api', authRoutes);
 app.use('/api/student/fees', feeRoutes);
 app.use('/api/student/results', resultRoutes);

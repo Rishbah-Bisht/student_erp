@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import StudentLayout from '../components/StudentLayout';
+import Skeleton from '../components/Skeleton';
 import {
     ArrowLeft,
     Mail,
@@ -160,6 +161,17 @@ const StudentProfile = () => {
     const attendancePercent = student?.attendanceSummary?.percentage || 0;
     const academicStatus = student?.status === 'batch_pending' ? t('Pending Batch') : (student?.status || t('Active'));
     const primaryColor = "#191838";
+    const getAttendanceColor = (percent) => {
+        if (percent < 50) return 'bg-red-500';
+        if (percent < 75) return 'bg-orange-500';
+        return 'bg-green-500';
+    };
+
+    const getAttendanceTextColor = (percent) => {
+        if (percent < 50) return 'text-red-500';
+        if (percent < 75) return 'text-orange-500';
+        return 'text-green-500';
+    };
 
     if (isLoading) {
         return (
@@ -193,7 +205,7 @@ const StudentProfile = () => {
     }
 
     return (
-        <div className="mx-auto max-w-2xl px-4 py-6 pb-24">
+        <div className="mx-auto max-w-2xl p0">
             
             {/* 1. Header Card - Avatar & Primary Info */}
             <div className="relative overflow-hidden rounded-[32px] border border-gray-100 bg-white p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:p-8">
@@ -239,21 +251,29 @@ const StudentProfile = () => {
                 {/* Academic Summary */}
                 <section>
                     <SectionHeader title={t('Academic Summary')} />
-                    <div className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('Attendance')}</span>
-                            <span className="text-lg font-black text-[#191838]">{attendancePercent}%</span>
-                        </div>
-                        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                            <div className="h-full bg-[#191838] transition-all" style={{ width: `${attendancePercent}%` }} />
-                        </div>
-                        
-                        <div className="mt-5 space-y-3">
-                            <DetailRow icon={BookOpen} label={t('Current Session')} value={student.session} colorClass="text-indigo-600" />
-                            <DetailRow icon={Calendar} label={t('Admission Date')} value={formatDateValue(student.admissionDate, locale)} colorClass="text-indigo-600" />
-                            <DetailRow icon={UserCheck} label={t('Account Status')} value={academicStatus} colorClass="text-indigo-600" />
-                        </div>
-                    </div>
+                                        <div className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm">
+                                                <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                                                {t('Attendance')}
+                                                        </span>
+                                                        <span className={`text-lg font-black ${getAttendanceTextColor(attendancePercent)}`}>
+                                                                {attendancePercent}%
+                                                        </span>
+                                                </div>
+
+                                                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                                                        <div
+                                                                className={`h-full transition-all ${getAttendanceColor(attendancePercent)}`}
+                                                                style={{ width: `${attendancePercent}%` }}
+                                                        />
+                                                </div>
+
+                                                <div className="mt-5 space-y-3">
+                                                        <DetailRow icon={BookOpen} label={t('Current Session')} value={student.session} colorClass="text-indigo-600" />
+                                                        <DetailRow icon={Calendar} label={t('Admission Date')} value={formatDateValue(student.admissionDate, locale)} colorClass="text-indigo-600" />
+                                                        <DetailRow icon={UserCheck} label={t('Account Status')} value={academicStatus} colorClass="text-indigo-600" />
+                                                </div>
+                                        </div>
                 </section>
 
                 {/* Guardian Info */}

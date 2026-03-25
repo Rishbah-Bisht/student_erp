@@ -129,6 +129,7 @@ const TestDetailModal = ({ test, onClose }) => {
 };
 
 const StudentResults = () => {
+    const RESULTS_PER_PAGE = 5;
     const navigate = useNavigate();
     const { t, language } = useLanguage();
     const [error, setError] = useState('');
@@ -138,6 +139,7 @@ const StudentResults = () => {
     const [subjectFilter, setSubjectFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All'); // 'All', 'Passed', 'Needs Work'
     const [sortOrder, setSortOrder] = useState('desc'); // 'desc' or 'asc'
+    const [currentPage, setCurrentPage] = useState(1);
     const [selectedTest, setSelectedTest] = useState(null);
     const token = localStorage.getItem('studentToken');
 
@@ -219,6 +221,23 @@ const StudentResults = () => {
             return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
         });
     }, [results, searchTerm, subjectFilter, statusFilter, sortOrder]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredResults.length / RESULTS_PER_PAGE));
+
+    const paginatedResults = useMemo(() => {
+        const start = (currentPage - 1) * RESULTS_PER_PAGE;
+        return filteredResults.slice(start, start + RESULTS_PER_PAGE);
+    }, [filteredResults, currentPage]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, subjectFilter, statusFilter, sortOrder, results.length]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
 
     // Group tests by subject for drill-down analysis
     const subjectWiseHistory = useMemo(() => {
@@ -313,20 +332,21 @@ const StudentResults = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 px-0 sm:px-0 pb-8 sm:pb-12">
+        <div className="max-w-7xl mx-auto space-y-5 sm:space-y-6 px-0 sm:px-0 pb-8 sm:pb-12">
             {/* Header Section */}
-            <div>
-                <div className="flex items-center gap-2 mb-1">
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{t('Academic Analytics')}</h1>
+            <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 p-5 sm:p-6 shadow-[0_12px_35px_rgba(15,23,42,0.08)]">
+                <div className="absolute -top-10 -right-10 h-36 w-36 rounded-full bg-indigo-100/50" />
+                <div className="relative flex items-center gap-2 mb-1">
+                    <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">{t('Academic Analytics')}</h1>
                     {studentInfo?.batchName && (
-                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase rounded border border-blue-100">{studentInfo.batchName}</span>
+                        <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded-full border border-indigo-100">{studentInfo.batchName}</span>
                     )}
                 </div>
-                <p className="text-gray-500 text-sm sm:text-base">{t('View your test scores, track progress, and identify areas for improvement.')}</p>
+                <p className="relative text-gray-600 text-sm sm:text-base max-w-2xl">{t('View your test scores, track progress, and identify areas for improvement.')}</p>
             </div>
 
             {error && (
-                <div className="bg-red-50 text-red-700 p-3 sm:p-4 rounded-lg flex items-center gap-2 sm:gap-3 text-sm sm:text-base">
+                <div className="bg-rose-50 text-rose-700 p-3 sm:p-4 rounded-2xl border border-rose-200 flex items-center gap-2 sm:gap-3 text-sm sm:text-base">
                     <AlertTriangle size={18} className="shrink-0" />
                     <span>{error}</span>
                 </div>
@@ -334,8 +354,8 @@ const StudentResults = () => {
 
             {/* Key Metrics Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center gap-3 sm:gap-4">
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center gap-3 sm:gap-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
                         <BookOpen size={20} className="sm:hidden" />
                         <BookOpen size={24} className="hidden sm:block" />
                     </div>
@@ -345,19 +365,19 @@ const StudentResults = () => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center gap-3 sm:gap-4">
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-md bg-indigo-100 text-[#191838] flex items-center justify-center shrink-0">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center gap-3 sm:gap-4">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                         <Award size={20} className="sm:hidden" />
                         <Award size={24} className="hidden sm:block" />
                     </div>
                     <div className="min-w-0">
                         <p className="text-xs sm:text-sm text-gray-500 font-medium">{t('Average Score')}</p>
-                        <h3 className="text-xl sm:text-2xl font-bold text-gray-800">{stats?.overallPercentage || 0}%</h3>
+                        <h3 className="text-xl sm:text-2xl font-bold text-emerald-700">{stats?.overallPercentage || 0}%</h3>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 sm:col-span-2 lg:col-span-1">
-                    <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-md flex items-center justify-center shrink-0 ${weakSubjects.length > 0 ? 'bg-orange-100 text-orange-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 sm:col-span-2 lg:col-span-1">
+                    <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center shrink-0 ${weakSubjects.length > 0 ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
                         {weakSubjects.length > 0 ? (
                             <>
                                 <TrendingDown size={20} className="sm:hidden" />
@@ -384,7 +404,7 @@ const StudentResults = () => {
                 <div className="space-y-4 sm:space-y-6">
 
                     {/* Progressive Chart Box */}
-                    <div className="bg-white rounded-md shadow-sm border border-gray-100 p-4 sm:p-6">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
                         <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
                             <TrendingUp className="text-blue-500 shrink-0" size={18} />
                             <span>{t('Progress Over Time')}</span>
@@ -403,7 +423,7 @@ const StudentResults = () => {
 
                     {/* Weak Subjects Alert Box - Interactive */}
                     {weakSubjects.length > 0 && (
-                        <div className="bg-white rounded-md shadow-sm border border-orange-200 overflow-hidden">
+                        <div className="bg-white rounded-2xl shadow-sm border border-orange-200 overflow-hidden">
 
                             <div className="p-4 sm:p-6 bg-orange-50/50 border-b border-orange-100">
                                 <h3 className="text-sm sm:text-lg font-bold text-orange-800 mb-1 flex items-center gap-2">
@@ -426,7 +446,7 @@ const StudentResults = () => {
                                             key={ws.subject}
                                             onClick={() => navigate(`/student/results/subject/${ws.subject}`)}
 
-                                            className="flex-shrink-0 px-4 sm:px-5 py-3 rounded-md border-2 transition-all duration-300 flex flex-col items-start gap-1 min-w-[120px] sm:min-w-[140px] bg-white border-gray-100 text-gray-500 hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-lg hover:shadow-blue-50 active:scale-[0.96] group"
+                                            className="flex-shrink-0 px-4 sm:px-5 py-3 rounded-xl border-2 transition-all duration-300 flex flex-col items-start gap-1 min-w-[120px] sm:min-w-[140px] bg-white border-gray-100 text-gray-500 hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-lg hover:shadow-blue-50 active:scale-[0.96] group"
                                         >
 
                                             <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-blue-500 transition-colors">
@@ -452,9 +472,9 @@ const StudentResults = () => {
                     )}
 
                     {/* Results Table Section */}
-                    <div className="bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
 
-                        <div className="p-4 sm:p-6 border-b border-gray-100">
+                        <div className="p-4 sm:p-6 border-b border-gray-100 bg-slate-50/60">
 
                             <h3 className="text-sm sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4">
                                 {t('Complete Test History')}
@@ -471,7 +491,7 @@ const StudentResults = () => {
                                         placeholder={t('Search by test name or chapter...')}
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </div>
 
@@ -481,7 +501,7 @@ const StudentResults = () => {
                                     <select
                                         value={subjectFilter}
                                         onChange={(e) => setSubjectFilter(e.target.value)}
-                                        className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
+                                        className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
                                     >
                                         {subjects.map(sub => (
                                             <option key={sub} value={sub}>{sub}</option>
@@ -503,7 +523,7 @@ const StudentResults = () => {
                                     <select
                                         value={statusFilter}
                                         onChange={(e) => setStatusFilter(e.target.value)}
-                                        className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white font-medium"
+                                        className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white font-medium"
                                     >
                                         <option value="All">{t('All Statuses')}</option>
                                         <option value="Passed">{t('Passed')}</option>
@@ -520,7 +540,7 @@ const StudentResults = () => {
                                     <select
                                         value={sortOrder}
                                         onChange={(e) => setSortOrder(e.target.value)}
-                                        className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white font-medium"
+                                        className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white font-medium"
                                     >
                                         <option value="desc">{t('Newest First')}</option>
                                         <option value="asc">{t('Oldest First')}</option>
@@ -543,10 +563,10 @@ const StudentResults = () => {
                                 </div>
                             ) : (
 
-                                filteredResults.map((r, idx) => (
+                                paginatedResults.map((r, idx) => (
                                     <div
                                         key={r._id || r.id || idx}
-                                        className="p-4 space-y-3 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                                        className="m-3 rounded-2xl border border-gray-100 bg-white p-4 space-y-3 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
                                         onClick={() => setSelectedTest(r)}
                                     >
 
@@ -563,8 +583,8 @@ const StudentResults = () => {
                                             </div>
 
                                             <span
-                                                className={`px-2 py-1 rounded-md text-xs font-medium border shrink-0 ${r.hasPassed
-                                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                                className={`px-2 py-1 rounded-lg text-xs font-medium border shrink-0 ${r.hasPassed
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                     : 'bg-red-50 text-red-700 border-red-200'
                                                     }`}
                                             >
@@ -605,7 +625,7 @@ const StudentResults = () => {
 
 
                                         {r.remarks && (
-                                            <div className="bg-gray-50 p-2 rounded-md border border-gray-100 mt-1">
+                                            <div className="bg-gray-50 p-2 rounded-lg border border-gray-100 mt-1">
 
                                                 <p className="text-[10px] text-gray-500 italic flex gap-1 items-start">
                                                     <span className="font-bold text-blue-600 not-italic shrink-0">
@@ -627,9 +647,87 @@ const StudentResults = () => {
                         </div>
 
 
+                        {filteredResults.length > 0 && (
+                            <div className="p-4 sm:p-6 border-t border-gray-100 flex items-center justify-between gap-3 bg-slate-50/70">
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {t('Previous')}
+                                </button>
+
+                                <span className="text-xs font-bold text-gray-500">
+                                    {t('Page')} {currentPage} {t('of')} {totalPages}
+                                </span>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {t('Next')}
+                                </button>
+                            </div>
+                        )}
+
+
                         {/* Desktop Table View */}
                         <div className="hidden sm:block overflow-x-auto">
-                            {/* (Your same table code remains unchanged) */}
+                            {filteredResults.length === 0 ? (
+                                <div className="px-6 py-10 text-center text-gray-500 text-sm">
+                                    {t('No results match your criteria.')}
+                                </div>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-50 border-y border-gray-100">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-[11px] font-black uppercase tracking-wider text-gray-500">{t('Exam')}</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-gray-500">{t('Subject')}</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-gray-500">{t('Date')}</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-gray-500">{t('Score')}</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wider text-gray-500">{t('Status')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedResults.map((r, idx) => (
+                                            <tr
+                                                key={r._id || r.id || idx}
+                                                className="border-b border-gray-100 hover:bg-slate-50 cursor-pointer"
+                                                onClick={() => setSelectedTest(r)}
+                                            >
+                                                <td className="px-6 py-4">
+                                                    <p className="font-semibold text-gray-800">{r.examName}</p>
+                                                    <p className="text-xs text-gray-500 truncate max-w-[280px]">{r.chapter}</p>
+                                                </td>
+                                                <td className="px-4 py-4 text-gray-700 font-medium">{r.subject}</td>
+                                                <td className="px-4 py-4 text-gray-600">
+                                                    {new Date(r.date).toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-GB', {
+                                                        day: '2-digit',
+                                                        month: 'short',
+                                                        year: 'numeric'
+                                                    })}
+                                                </td>
+                                                <td className="px-4 py-4 text-gray-700 font-semibold">
+                                                    {r.marksObtained}/{r.totalMarks} <span className="text-gray-500">({r.percentage}%)</span>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <span
+                                                        className={`px-2 py-1 rounded-lg text-xs font-medium border ${r.hasPassed
+                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                            : 'bg-red-50 text-red-700 border-red-200'
+                                                            }`}
+                                                    >
+                                                        {r.hasPassed ? t('Passed') : t('Needs Work')}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
 
 
@@ -639,7 +737,7 @@ const StudentResults = () => {
                                 <button
                                     onClick={() => fetchNextPage()}
                                     disabled={isFetchingNextPage}
-                                    className="px-6 py-3 rounded-md bg-gray-900 text-gray-900 text-xs font-black uppercase tracking-widest hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="px-6 py-3 rounded-xl bg-gray-900 text-white text-xs font-black uppercase tracking-widest hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {isFetchingNextPage ? t('Loading more...') : t('Load more results')}
                                 </button>

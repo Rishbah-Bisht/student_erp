@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     Phone,
     Mail,
@@ -9,6 +10,7 @@ import {
     Heart,
     Send,
     MessageSquare,
+    ArrowLeft,
 } from "lucide-react";
 
 const faqs = {
@@ -80,6 +82,7 @@ const tabColors = {
 };
 
 export default function ContactSupport() {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("General");
     const [openFaq, setOpenFaq] = useState(null);
     const [formData, setFormData] = useState({ subject: "", message: "" });
@@ -110,6 +113,16 @@ export default function ContactSupport() {
             {/* Hero */}
             <section className="bg-white px-6 pt-12 pb-10 rounded-b-[40px] shadow-sm">
                 <div className="max-w-lg mx-auto flex flex-col items-center text-center">
+                    <div className="w-full flex justify-start mb-4">
+                        <button
+                            type="button"
+                            onClick={() => navigate(-1)}
+                            className="h-10 w-10 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-slate-100 transition-colors"
+                            aria-label="Go back"
+                        >
+                            <ArrowLeft size={18} />
+                        </button>
+                    </div>
                     <div
                         className="w-20 h-20 rounded-[28px] flex items-center justify-center mb-6 transition-colors duration-500"
                         style={{ background: activeColor.bg + "18" }}
@@ -131,14 +144,14 @@ export default function ContactSupport() {
 
             {/* Tab Strip */}
             <div className="max-w-2xl mx-auto px-5 py-7">
-                <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pb-1">
                     {tabs.map((tab) => {
                         const isActive = activeTab === tab;
                         return (
                             <button
                                 key={tab}
                                 onClick={() => handleTabChange(tab)}
-                                className="px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all duration-300 border"
+                                className="px-3 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all duration-300 border"
                                 style={
                                     isActive
                                         ? {

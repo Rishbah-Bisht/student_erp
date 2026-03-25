@@ -8,6 +8,28 @@ const FeeInfoModal = ({ isOpen, onClose, fee, student }) => {
 
     const currentStudent = (fee.studentId && typeof fee.studentId === 'object') ? fee.studentId : (student || {});
     const fmt = n => (n || 0).toLocaleString('en-IN');
+    const paymentRows = Array.isArray(fee.paymentHistory)
+        ? fee.paymentHistory.map((row) => ({
+            amount: row?.paidAmount ?? row?.amount ?? 0,
+            method: row?.paymentMethod || row?.method || row?.mode || 'N/A',
+            date: row?.date || row?.paidDate || null,
+            receiptNo: row?.receiptNo || row?.receipt || row?.receiptNumber || 'N/A',
+            transactionId: row?.transactionId || row?.paymentId || row?.referenceNo || null
+        }))
+        : [];
+    const formatTxnDate = (value) => {
+        if (!value) return 'N/A';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime())
+            ? 'N/A'
+            : date.toLocaleString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+    };
 
     // Calculations
     const totalReceived = (fee.amountPaid || 0);
@@ -57,64 +79,7 @@ const FeeInfoModal = ({ isOpen, onClose, fee, student }) => {
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto bg-white">
-                    {/* Student Mini Profile */}
-                    <div className="p-5 bg-white border-b border-slate-100">
-                        <div className="flex items-start gap-4">
-                            <div className="h-16 w-16 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 text-2xl font-bold border-2 border-indigo-50 shadow-inner">
-                                {currentStudent.name?.[0]?.toUpperCase() || 'S'}
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="text-xl font-bold text-gray-900">{currentStudent.name}</h3>
-                                <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 mt-2">
-                                    <div className="flex items-center gap-1.5 text-xs text-gray-900/50 font-medium whitespace-nowrap">
-                                        <BadgeInfo size={14} className="text-indigo-400" />
-                                        <span>{t('ID')}: <span className="text-gray-900">{currentStudent.rollNo}</span></span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 text-xs text-gray-900/50 font-medium whitespace-nowrap">
-                                        <div className="w-1 h-1 bg-slate-300 rounded-full" />
-                                        <span>{t('Course')}: <span className="text-gray-900">{(currentStudent.className || 'N/A').toUpperCase()}</span></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Expandable Info Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pt-5 border-t border-slate-50">
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-3 text-sm">
-                                    <div className="p-1.5 bg-slate-100 rounded-lg text-gray-900/50"><User size={14} /></div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 leading-none mb-1">{t('Parent Details')}</span>
-                                        <span className="text-gray-900/70 font-medium text-xs leading-tight">F: {currentStudent.fatherName || 'N/A'}</span>
-                                        <span className="text-gray-900/70 font-medium text-xs leading-tight">M: {currentStudent.motherName || 'N/A'}</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3 text-sm">
-                                    <div className="p-1.5 bg-slate-100 rounded-lg text-gray-900/50"><Phone size={14} /></div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 leading-none mb-1">{t('Contact')}</span>
-                                        <span className="text-gray-900/70 font-medium text-xs">{currentStudent.contact || 'N/A'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-3 text-sm">
-                                    <div className="p-1.5 bg-slate-100 rounded-lg text-gray-900/50"><Calendar size={14} /></div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 leading-none mb-1">{t('Date of Birth')}</span>
-                                        <span className="text-gray-900/70 font-medium text-xs">{currentStudent.dob ? new Date(currentStudent.dob).toLocaleDateString('en-GB') : 'N/A'}</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3 text-sm">
-                                    <div className="p-1.5 bg-slate-100 rounded-lg text-gray-900/50"><MapPin size={14} /></div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 leading-none mb-1">{t('Address')}</span>
-                                        <span className="text-gray-900/70 font-medium text-xs line-clamp-1">{currentStudent.address || 'N/A'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                  
 
                     {/* Breakdown Section */}
                     <div className="p-5">
@@ -179,21 +144,21 @@ const FeeInfoModal = ({ isOpen, onClose, fee, student }) => {
                             {t('Transaction History')}
                         </h4>
                         
-                        {fee.paymentHistory && fee.paymentHistory.length > 0 ? (
+                        {paymentRows.length > 0 ? (
                             <div className="space-y-3">
-                                {fee.paymentHistory.map((p, i) => (
+                                {paymentRows.map((p, i) => (
                                     <div key={i} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
                                         <div className="absolute right-0 top-0 h-full w-1 bg-indigo-500 opacity-20" />
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <div className="flex items-center gap-1.5 leading-none">
                                                     <CreditCard size={12} className="text-indigo-400" />
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.paymentMethod}</span>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.method}</span>
                                                 </div>
-                                                <div className="text-base font-black text-gray-900 mt-1">₹{fmt(p.paidAmount)}</div>
+                                                <div className="text-base font-black text-gray-900 mt-1">₹{fmt(p.amount)}</div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-xs font-bold text-gray-900">{new Date(p.date).toLocaleDateString('en-GB')}</div>
+                                                <div className="text-xs font-bold text-gray-900">{formatTxnDate(p.date)}</div>
                                                 <div className="text-[10px] font-medium text-slate-400 mt-0.5">{p.receiptNo || 'N/A'}</div>
                                             </div>
                                         </div>

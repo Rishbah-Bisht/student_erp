@@ -62,9 +62,6 @@ const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 const StudentSettings = lazy(() => import('./pages/StudentSettings'));
 const StudentTabController = lazy(() => import('./pages/StudentTabController'));
 
-const StudentAttendance = lazy(() => import('./pages/StudentAttendance'));
-const SubjectAttendanceDetail = lazy(() => import('./pages/SubjectAttendanceDetail'));
-
 const getStoredStudentRoute = () => {
     const token = localStorage.getItem('studentToken');
     if (!token) return '/student/login';
@@ -115,8 +112,8 @@ function App() {
                         <Route path="/student/dashboard" element={<StudentTabController />} />
                         <Route path="/student/profile" element={<Navigate to="/student/dashboard?tab=profile" replace />} />
                         <Route path="/student/subjects" element={<Navigate to="/student/dashboard?tab=subjects" replace />} />
-                        <Route path="/student/attendance" element={<Navigate to="/student/dashboard?tab=attendance" replace />} />
-                        <Route path="/student/attendance/:subjectId" element={<SubjectAttendanceDetail />} />
+                        <Route path="/student/attendance" element={<Navigate to="/student/dashboard?tab=home" replace />} />
+                        <Route path="/student/attendance/:subjectId" element={<Navigate to="/student/dashboard?tab=home" replace />} />
                         <Route path="/student/fees" element={<Navigate to="/student/dashboard?tab=fees" replace />} />
                         <Route path="/student/results" element={<Navigate to="/student/dashboard?tab=results" replace />} />
                         <Route path="/student/results/subject/:subjectName" element={<SubjectDetail />} />

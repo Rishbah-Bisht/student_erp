@@ -22,9 +22,9 @@ const formatCurrency = (value) => `\u20b9${Number(value || 0).toLocaleString('en
 const getPerformanceTone = (score) => {
   if (score >= 75) {
     return {
-      text: 'text-indigo-900',
-      soft: 'bg-indigo-50 text-indigo-900 border-indigo-200',
-      bar: 'bg-indigo-500',
+      text: 'text-emerald-700',
+      soft: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      bar: 'bg-emerald-500',
       label: 'Strong'
     };
   }
@@ -47,7 +47,7 @@ const getPerformanceTone = (score) => {
 };
 
 const getAttendanceBadgeClass = (status) => {
-  if (status === 'Present') return 'bg-indigo-50 text-indigo-900 border-indigo-200';
+  if (status === 'Present') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   if (status === 'Late') return 'bg-amber-50 text-amber-700 border-amber-200';
   if (status === 'Absent') return 'bg-rose-50 text-rose-700 border-rose-200';
   return 'bg-gray-100 text-gray-600 border-gray-200';
@@ -378,9 +378,9 @@ const StudentDashboard = () => {
             </div>
 
             <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
-              <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-center">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-900">{t('Present')}</p>
-                <p className="mt-2 text-xl font-black text-indigo-900">{attendanceSummary.present || 0}</p>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">{t('Present')}</p>
+                <p className="mt-2 text-xl font-black text-emerald-700">{attendanceSummary.present || 0}</p>
               </div>
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-center">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-700">{t('Absent')}</p>

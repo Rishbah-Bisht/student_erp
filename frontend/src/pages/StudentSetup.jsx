@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Camera, Lock, CheckCircle2, AlertTriangle, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { Camera, Lock, CheckCircle2, AlertTriangle, RefreshCcw, ShieldCheck, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageToggleButton from '../components/LanguageToggleButton';
 
@@ -14,6 +14,8 @@ const StudentSetup = () => {
     const [passwords, setPasswords] = useState({ newPassword: '', confirmPassword: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
 
     useEffect(() => {
         const student = JSON.parse(localStorage.getItem('studentInfo') || '{}');
@@ -77,14 +79,13 @@ const StudentSetup = () => {
             });
 
             if (res.data.success) {
-                // Update local storage
                 const studentInfo = JSON.parse(localStorage.getItem('studentInfo') || '{}');
                 studentInfo.isFirstLogin = false;
                 studentInfo.profileImage = res.data.student?.profileImage || studentInfo.profileImage;
                 studentInfo.needsSetup = false;
                 localStorage.setItem('studentInfo', JSON.stringify(studentInfo));
 
-                setStep(3); // Success step
+                setStep(3);
                 setTimeout(() => navigate('/student/dashboard'), 2000);
             }
         } catch (err) {
@@ -95,48 +96,77 @@ const StudentSetup = () => {
     };
 
     return (
-        <div className="relative min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+        <div className="relative min-h-screen w-full flex items-center justify-center p-4 font-sans overflow-hidden bg-gradient-to-br from-gray-50 via-white to-gray-100">
             <div className="absolute right-4 top-4 z-[120]">
                 <LanguageToggleButton variant="topbar" />
             </div>
-            <div className="max-w-md w-full bg-white rounded-md shadow-2xl border border-gray-100 overflow-hidden">
-                {/* Header */}
-                <div className="p-10 bg-gray-900 text-gray-900 text-center">
-                    <div className="flex items-center justify-center gap-3 mb-4">
-                        <ShieldCheck className="text-blue-400" size={28} />
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400">{t('Security Activation')}</span>
+
+            {/* Subtle background pattern */}
+            <div className="absolute inset-0 opacity-[0.03] [background-image:radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.8)_1px,transparent_0)] [background-size:20px_20px]" />
+
+            {/* Decorative blobs */}
+            <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-indigo-100 rounded-full blur-[100px] opacity-50 pointer-events-none" />
+            <div className="absolute bottom-[-10%] left-[-5%] w-[350px] h-[350px] bg-emerald-100 rounded-full blur-[100px] opacity-40 pointer-events-none" />
+
+            {/* --- MAIN CARD --- */}
+            <div className="relative z-10 w-full max-w-[440px] bg-white rounded-[24px] sm:rounded-[28px] shadow-[0_20px_60px_rgba(0,0,0,0.08)] border border-gray-200 overflow-hidden">
+
+                {/* Step Indicator */}
+                <div className="px-6 pt-6 sm:px-8 sm:pt-8">
+                    <div className="flex items-center gap-2">
+                        {[1, 2, 3].map((s) => (
+                            <div key={s} className="flex-1">
+                                <div className={`h-1.5 rounded-full transition-all duration-500 ${
+                                    s <= step ? 'bg-[#191838]' : 'bg-gray-100'
+                                }`} />
+                            </div>
+                        ))}
                     </div>
-                    <h2 className="text-3xl font-black tracking-tight">{t('Setup Portal')}</h2>
-                    <p className="text-gray-400 text-xs mt-2 font-medium">{t('Verify your identity and secure your workspace.')}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-gray-400 mt-2.5">
+                        {t('Step')} {step} {t('of')} 3
+                    </p>
                 </div>
 
-                <div className="p-10">
+                {/* Header */}
+                <div className="px-6 pt-4 pb-2 sm:px-8 text-center">
+                    <div className="flex items-center justify-center gap-2.5 mb-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#191838] text-white">
+                            <ShieldCheck size={18} />
+                        </div>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">{t('Setup Portal')}</h2>
+                    <p className="text-gray-500 text-sm mt-2 font-medium">{t('Verify your identity and secure your workspace.')}</p>
+                </div>
+
+                {/* Content */}
+                <div className="px-6 pb-8 pt-4 sm:px-8 sm:pb-10">
                     {error && (
-                        <div className="p-4 bg-rose-50 text-rose-700 rounded-md flex items-center gap-3 mb-8 animate-in slide-in-from-top-2">
-                            <AlertTriangle size={18} className="shrink-0" />
-                            <span className="text-xs font-bold leading-tight">{error}</span>
+                        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl flex items-start gap-3 mb-6 animate-in fade-in zoom-in duration-300">
+                            <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                            <span className="text-sm font-bold leading-snug">{error}</span>
                         </div>
                     )}
 
+                    {/* STEP 1: Photo Upload */}
                     {step === 1 && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                            <div className="text-center space-y-6">
-                                <div className="relative inline-block">
-                                    <div className="h-40 w-40 rounded-md bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden group transition-all hover:border-blue-300">
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="flex flex-col items-center space-y-5">
+                                <div className="relative">
+                                    <div className="h-32 w-32 sm:h-36 sm:w-36 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all hover:border-[#191838]/30 group">
                                         {preview ? (
-                                            <img src={preview} alt="Preview" className="h-full w-full object-cover" />
+                                            <img src={preview} alt="Preview" className="h-full w-full object-cover rounded-full" />
                                         ) : (
-                                            <Camera className="text-gray-300 group-hover:text-blue-500 transition-colors" size={48} />
+                                            <Camera className="text-gray-300 group-hover:text-[#191838] transition-colors" size={40} />
                                         )}
                                     </div>
-                                    <label className="absolute -bottom-2 -right-2 h-12 w-12 bg-blue-600 text-gray-900 rounded-md shadow-xl flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-all active:scale-95 border-4 border-white">
-                                        <Camera size={20} />
+                                    <label className="absolute -bottom-1 -right-1 h-10 w-10 bg-[#191838] text-white rounded-full shadow-lg shadow-gray-300/60 flex items-center justify-center cursor-pointer hover:bg-[#12112a] transition-all active:scale-95 border-3 border-white">
+                                        <Camera size={16} />
                                         <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
                                     </label>
                                 </div>
-                                <div className="space-y-2">
-                                    <h3 className="text-xl font-black text-gray-800 tracking-tight">{t('Professional Photo')}</h3>
-                                    <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                                <div className="text-center space-y-1.5">
+                                    <h3 className="text-lg font-black text-gray-900 tracking-tight">{t('Professional Photo')}</h3>
+                                    <p className="text-xs text-gray-500 font-medium leading-relaxed max-w-[280px]">
                                         {t('Upload a clear front-facing photo. This will be used for your official ID card and cannot be changed.')}
                                     </p>
                                 </div>
@@ -144,73 +174,124 @@ const StudentSetup = () => {
 
                             <button
                                 onClick={() => image ? setStep(2) : setError(t('Please upload your photo to continue'))}
-                                className="w-full py-5 bg-gray-900 text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-gray-800 transition-all shadow-2xl shadow-gray-200 active:scale-[0.98]"
+                                className="w-full py-3.5 bg-[#191838] hover:bg-[#12112a] text-white text-sm font-bold rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(25,24,56,0.25)] hover:shadow-[0_6px_20px_rgba(25,24,56,0.3)] hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.98] group"
                             >
-                                {t('Secure My Account')}
+                                <span>{t('Continue')}</span>
+                                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
                     )}
 
+                    {/* STEP 2: Password Setup */}
                     {step === 2 && (
-                        <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-right-4">
-                            <div className="space-y-5">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t('Set New Password')}</label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                            {/* Preview thumbnail */}
+                            {preview && (
+                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2">
+                                    <img src={preview} alt="Profile" className="h-10 w-10 rounded-full object-cover ring-2 ring-[#191838]/10" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-gray-900 truncate">{t('Photo uploaded')}</p>
+                                        <p className="text-[10px] text-gray-400 font-medium">{t('Ready for activation')}</p>
+                                    </div>
+                                    <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-gray-700">{t('Set New Password')}</label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                            <Lock size={18} className="text-gray-400 group-focus-within:text-[#191838] transition-colors" />
+                                        </div>
                                         <input
-                                            type="password" required
+                                            type={showPassword ? 'text' : 'password'}
+                                            required
                                             value={passwords.newPassword}
                                             onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
-                                            className="w-full pl-14 pr-4 py-5 bg-gray-50 border border-gray-100 rounded-md focus:ring-8 focus:ring-blue-500/5 focus:bg-white focus:border-blue-200 outline-none transition-all text-sm font-bold"
+                                            className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-[#191838] focus:ring-4 focus:ring-[#191838]/5 transition-all text-sm font-medium"
                                             placeholder={t('Choose a strong password')}
                                         />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-[#191838] transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t('Confirm Identity')}</label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-gray-700">{t('Confirm Password')}</label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                            <Lock size={18} className="text-gray-400 group-focus-within:text-[#191838] transition-colors" />
+                                        </div>
                                         <input
-                                            type="password" required
+                                            type={showConfirm ? 'text' : 'password'}
+                                            required
                                             value={passwords.confirmPassword}
                                             onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
-                                            className="w-full pl-14 pr-4 py-5 bg-gray-50 border border-gray-100 rounded-md focus:ring-8 focus:ring-blue-500/5 focus:bg-white focus:border-blue-200 outline-none transition-all text-sm font-bold"
+                                            className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-[#191838] focus:ring-4 focus:ring-[#191838]/5 transition-all text-sm font-medium"
                                             placeholder={t('Repeat the password')}
                                         />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirm(!showConfirm)}
+                                            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-[#191838] transition-colors"
+                                        >
+                                            {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
+                            {/* Password hint */}
+                            <p className="text-[11px] text-gray-400 font-medium">
+                                {t('Use at least 6 characters with a mix of letters and numbers.')}
+                            </p>
+
+                            <div className="flex gap-3 pt-1">
                                 <button
-                                    type="button" onClick={() => setStep(1)}
-                                    className="flex-1 py-5 bg-gray-50 text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-gray-100 transition-all font-bold"
+                                    type="button"
+                                    onClick={() => setStep(1)}
+                                    className="flex-1 py-3 bg-gray-50 border border-gray-200 text-gray-600 text-sm font-bold rounded-2xl hover:bg-gray-100 transition-all flex items-center justify-center gap-1.5"
                                 >
-                                    {t('Go Back')}
+                                    <ArrowLeft size={15} />
+                                    <span>{t('Back')}</span>
                                 </button>
                                 <button
-                                    type="submit" disabled={loading}
-                                    className="flex-[2] py-5 bg-blue-600 text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-blue-700 transition-all shadow-2xl shadow-blue-100 disabled:opacity-50 active:scale-[0.98]"
+                                    type="submit"
+                                    disabled={loading}
+                                    className="flex-[2] py-3 bg-[#191838] hover:bg-[#12112a] text-white text-sm font-bold rounded-2xl shadow-[0_4px_14px_rgba(25,24,56,0.25)] hover:shadow-[0_6px_20px_rgba(25,24,56,0.3)] hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
-                                    {loading ? t('Processing...') : t('Activate Portal')}
+                                    {loading ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <span>{t('Activate Portal')}</span>
+                                            <ArrowRight size={16} />
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </form>
                     )}
 
+                    {/* STEP 3: Success */}
                     {step === 3 && (
-                        <div className="py-16 text-center space-y-6 animate-in zoom-in-95 duration-700">
-                            <div className="h-24 w-24 bg-indigo-50 text-indigo-500 rounded-md flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-50">
-                                <CheckCircle2 size={48} />
+                        <div className="py-10 sm:py-14 text-center space-y-5 animate-in fade-in duration-500">
+                            <div className="h-20 w-20 sm:h-24 sm:w-24 bg-emerald-50 border border-emerald-200 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-100">
+                                <CheckCircle2 size={40} />
                             </div>
                             <div className="space-y-2">
                                 <h3 className="text-2xl font-black text-gray-900 tracking-tight">{t('Identity Verified')}</h3>
-                                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">{t('Entry Granted')}</p>
+                                <p className="text-sm text-emerald-600 font-bold uppercase tracking-widest">{t('Entry Granted')}</p>
                             </div>
-                            <div className="flex flex-col items-center gap-3 pt-4">
-                                <RefreshCcw className="animate-spin text-blue-500" size={24} />
-                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{t('Redirecting to Dashboard')}</p>
+                            <div className="flex flex-col items-center gap-3 pt-3">
+                                <RefreshCcw className="animate-spin text-[#191838]" size={20} />
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">{t('Redirecting to Dashboard')}</p>
                             </div>
                         </div>
                     )}

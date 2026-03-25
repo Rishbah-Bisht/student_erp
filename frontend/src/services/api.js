@@ -118,13 +118,17 @@ api.interceptors.response.use(
     async (error) => {
         const statusCode = error.response?.status;
         const reason = normalizeAuthReason(error);
+        const requestUrl = error?.config?.url || '';
+
+        // Never intercept 401s from login endpoints — let the login page handle them
+        const isLoginRequest = requestUrl.includes('/login') || requestUrl.includes('/register');
 
         if (isNativeShell()) {
             if (statusCode === 503 || reason === 'db_unavailable') {
                 return Promise.reject(error);
             }
 
-            if (statusCode === 401) {
+            if (statusCode === 401 && !isLoginRequest) {
                 const retriedResponse = await retryNativeRequest(error, { forceRefresh: true });
                 if (retriedResponse) {
                     return retriedResponse;
@@ -136,7 +140,7 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        if (statusCode === 401) {
+        if (statusCode === 401 && !isLoginRequest) {
             localStorage.removeItem('studentToken');
             localStorage.removeItem('studentInfo');
             window.location.href = '/student/login';
