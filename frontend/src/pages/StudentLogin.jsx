@@ -92,7 +92,7 @@ const StudentLogin = () => {
             if (response.data.success) {
                 localStorage.setItem('studentToken', response.data.token);
                 localStorage.setItem('studentInfo', JSON.stringify(response.data.student));
-                
+
                 if (isNativeShell()) {
                     const webUrl = import.meta.env.VITE_STUDENT_WEB_URL;
                     if (webUrl) {
@@ -130,170 +130,450 @@ const StudentLogin = () => {
     };
 
     return (
-        <div className="relative min-h-screen w-full flex items-center justify-center p-4 font-sans overflow-hidden bg-[#0a0a0f]">
-            <div className="absolute right-4 top-4 z-[120]">
-                <LanguageToggleButton variant="topbar" />
-            </div>
-            
-            {/* --- INLINE CSS FOR ADVANCED ANIMATIONS --- */}
+        <div className="sl-page">
+            {/* --- INLINE STYLES --- */}
             <style>
                 {`
-                    @keyframes float {
-                        0%, 100% { transform: translateY(0) rotate(0deg); }
-                        50% { transform: translateY(-20px) rotate(5deg); }
+                    /* ═══ PAGE SHELL ═══ */
+                    .sl-page {
+                        display: flex;
+                        flex-direction: column;
+                        min-height: 100vh;
+                        min-height: 100dvh;
+                        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                        background: #f5f7fa;
+                        overflow-x: hidden;
+                        position: relative;
                     }
-                    @keyframes float-reverse {
-                        0%, 100% { transform: translateY(0) rotate(0deg); }
-                        50% { transform: translateY(20px) rotate(-5deg); }
+
+                    /* ═══ HERO (TOP SECTION) ═══ */
+                    .sl-hero {
+                        position: relative;
+                        flex-shrink: 0;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 52px 24px 72px;
+                        background: linear-gradient(165deg, #1e1b4b 0%, #191838 35%, #0f0e24 100%);
+                        overflow: hidden;
                     }
-                    @keyframes spin-slow {
-                        from { transform: rotate(0deg); }
+
+                    /* Subtle grid pattern on hero */
+                    .sl-hero::before {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        background-image:
+                            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+                        background-size: 40px 40px;
+                        pointer-events: none;
+                    }
+
+                    /* Gradient orbs */
+                    .sl-hero::after {
+                        content: '';
+                        position: absolute;
+                        width: 300px;
+                        height: 300px;
+                        border-radius: 50%;
+                        background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+                        top: -60px;
+                        right: -80px;
+                        pointer-events: none;
+                    }
+
+                    .sl-orb-2 {
+                        position: absolute;
+                        width: 200px;
+                        height: 200px;
+                        border-radius: 50%;
+                        background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%);
+                        bottom: 20px;
+                        left: -50px;
+                        pointer-events: none;
+                    }
+
+                    /* ═══ LOGO & GLOW ═══ */
+                    .sl-logo-wrap {
+                        position: relative;
+                        margin-bottom: 24px;
+                        animation: sl-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+                    }
+
+                    .sl-logo-glow {
+                        position: absolute;
+                        inset: -16px;
+                        border-radius: 28px;
+                        background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%);
+                        animation: sl-glow-pulse 3s ease-in-out infinite;
+                        pointer-events: none;
+                    }
+
+                    .sl-logo-box {
+                        position: relative;
+                        width: 80px;
+                        height: 80px;
+                        border-radius: 22px;
+                        background: rgba(255, 255, 255, 0.08);
+                        border: 1px solid rgba(255, 255, 255, 0.12);
+                        backdrop-filter: blur(12px);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 10px;
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                    }
+
+                    .sl-logo-box img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: contain;
+                        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+                    }
+
+                    .sl-hero-title {
+                        color: #ffffff;
+                        font-size: 24px;
+                        font-weight: 800;
+                        letter-spacing: -0.02em;
+                        margin: 0 0 8px;
+                        text-align: center;
+                        animation: sl-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+                    }
+
+                    .sl-hero-sub {
+                        color: rgba(255, 255, 255, 0.5);
+                        font-size: 14px;
+                        font-weight: 500;
+                        margin: 0;
+                        text-align: center;
+                        animation: sl-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+                    }
+
+                    /* ═══ FORM CARD (BOTTOM SHEET) ═══ */
+                    .sl-card {
+                        position: relative;
+                        flex: 1;
+                        margin-top: -36px;
+                        background: #ffffff;
+                        border-radius: 32px 32px 0 0;
+                        padding: 36px 24px 40px;
+                        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.08);
+                        animation: sl-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+                        z-index: 10;
+                    }
+
+                    @media (min-width: 480px) {
+                        .sl-card { padding: 40px 32px 48px; }
+                        .sl-hero { padding: 60px 32px 80px; }
+                        .sl-hero-title { font-size: 28px; }
+                    }
+
+                    /* ═══ ERROR BANNER ═══ */
+                    .sl-error {
+                        display: flex;
+                        align-items: flex-start;
+                        gap: 12px;
+                        padding: 14px 16px;
+                        background: #fef2f2;
+                        border: 1px solid #fecaca;
+                        border-radius: 16px;
+                        margin-bottom: 24px;
+                        animation: sl-fade-in 0.3s ease both;
+                    }
+
+                    .sl-error-icon { color: #f43f5e; flex-shrink: 0; margin-top: 1px; }
+                    .sl-error-title { font-size: 13px; font-weight: 700; color: #be123c; margin: 0; }
+                    .sl-error-hint { font-size: 11px; color: #f43f5e; margin: 4px 0 0; }
+
+                    /* ═══ FORM FIELDS ═══ */
+                    .sl-form { display: flex; flex-direction: column; gap: 20px; }
+
+                    .sl-field-label {
+                        display: block;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: #374151;
+                        margin-bottom: 8px;
+                        letter-spacing: -0.01em;
+                    }
+
+                    .sl-input-wrap {
+                        position: relative;
+                        display: flex;
+                        align-items: center;
+                    }
+
+                    .sl-input-icon {
+                        position: absolute;
+                        left: 16px;
+                        color: #9ca3af;
+                        pointer-events: none;
+                        transition: color 0.2s;
+                        z-index: 2;
+                    }
+
+                    .sl-input-wrap:focus-within .sl-input-icon { color: #191838; }
+                    .sl-input-wrap.sl-has-error .sl-input-icon { color: #f43f5e; }
+
+                    .sl-input {
+                        width: 100%;
+                        height: 52px;
+                        padding: 0 16px 0 48px;
+                        background: #f8fafc;
+                        border: 1.5px solid #e5e7eb;
+                        border-radius: 16px;
+                        font-size: 15px;
+                        font-weight: 500;
+                        font-family: inherit;
+                        color: #111827;
+                        outline: none;
+                        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                    }
+
+                    .sl-input::placeholder { color: #9ca3af; font-weight: 400; }
+
+                    .sl-input:focus {
+                        border-color: #191838;
+                        background: #ffffff;
+                        box-shadow: 0 0 0 4px rgba(25, 24, 56, 0.06);
+                    }
+
+                    .sl-input.sl-input-error {
+                        border-color: #fca5a5;
+                    }
+                    .sl-input.sl-input-error:focus {
+                        border-color: #f43f5e;
+                        box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.08);
+                    }
+
+                    .sl-input-pw { padding-right: 52px; }
+
+                    .sl-eye-btn {
+                        position: absolute;
+                        right: 14px;
+                        background: none;
+                        border: none;
+                        color: #9ca3af;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 4px;
+                        border-radius: 8px;
+                        transition: all 0.15s;
+                        z-index: 2;
+                    }
+                    .sl-eye-btn:hover { color: #191838; background: rgba(25,24,56,0.04); }
+
+                    .sl-field-error {
+                        display: block;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: #f43f5e;
+                        margin-top: 6px;
+                        padding-left: 2px;
+                    }
+
+                    /* ═══ SUBMIT BUTTON ═══ */
+                    .sl-submit {
+                        width: 100%;
+                        height: 54px;
+                        margin-top: 12px;
+                        border: none;
+                        border-radius: 18px;
+                        background: linear-gradient(135deg, #191838 0%, #2d2a6e 100%);
+                        color: #ffffff;
+                        font-size: 15px;
+                        font-weight: 700;
+                        font-family: inherit;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 10px;
+                        position: relative;
+                        overflow: hidden;
+                        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                        box-shadow: 0 4px 16px rgba(25, 24, 56, 0.3);
+                        letter-spacing: -0.01em;
+                    }
+
+                    .sl-submit:hover:not(:disabled) {
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 24px rgba(25, 24, 56, 0.35);
+                    }
+
+                    .sl-submit:active:not(:disabled) {
+                        transform: scale(0.98) translateY(0);
+                    }
+
+                    .sl-submit:disabled {
+                        opacity: 0.65;
+                        cursor: not-allowed;
+                        transform: none;
+                        box-shadow: none;
+                    }
+
+                    /* Shimmer on hover */
+                    .sl-submit::after {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.12) 50%, transparent 60%);
+                        transform: translateX(-100%);
+                        transition: none;
+                    }
+                    .sl-submit:hover:not(:disabled)::after {
+                        animation: sl-shimmer 1.5s infinite;
+                    }
+
+                    .sl-spinner {
+                        width: 22px;
+                        height: 22px;
+                        border: 2.5px solid rgba(255,255,255,0.25);
+                        border-top-color: #ffffff;
+                        border-radius: 50%;
+                        animation: sl-spin 0.7s linear infinite;
+                    }
+
+                    .sl-btn-arrow {
+                        transition: transform 0.2s;
+                    }
+                    .sl-submit:hover:not(:disabled) .sl-btn-arrow {
+                        transform: translateX(4px);
+                    }
+
+                    /* ═══ FOOTER ═══ */
+                    .sl-footer {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 6px;
+                        margin-top: 28px;
+                        padding-top: 20px;
+                        border-top: 1px solid #f1f5f9;
+                    }
+
+                    .sl-footer-icon { color: #a5b4fc; }
+
+                    .sl-footer-text {
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: #9ca3af;
+                        letter-spacing: 0.02em;
+                    }
+
+                    /* ═══ LANGUAGE TOGGLE ═══ */
+                    .sl-lang-toggle {
+                        position: absolute;
+                        top: 16px;
+                        right: 16px;
+                        z-index: 120;
+                    }
+
+                    /* ═══ KEYFRAMES ═══ */
+                    @keyframes sl-fade-up {
+                        from { opacity: 0; transform: translateY(20px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+
+                    @keyframes sl-slide-up {
+                        from { opacity: 0; transform: translateY(30px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+
+                    @keyframes sl-fade-in {
+                        from { opacity: 0; transform: scale(0.96); }
+                        to { opacity: 1; transform: scale(1); }
+                    }
+
+                    @keyframes sl-glow-pulse {
+                        0%, 100% { opacity: 0.5; transform: scale(1); }
+                        50% { opacity: 1; transform: scale(1.08); }
+                    }
+
+                    @keyframes sl-shimmer {
+                        100% { transform: translateX(100%); }
+                    }
+
+                    @keyframes sl-spin {
                         to { transform: rotate(360deg); }
-                    }
-                    @keyframes draw-line {
-                        from { stroke-dashoffset: 1000; }
-                        to { stroke-dashoffset: 0; }
-                    }
-                    @keyframes pulse-glow {
-                        0%, 100% { opacity: 0.3; transform: scale(1); }
-                        50% { opacity: 0.8; transform: scale(1.2); }
-                    }
-                    
-                    .film-reel-1 { animation: float 12s ease-in-out infinite; }
-                    .film-reel-2 { animation: float-reverse 15s ease-in-out infinite; }
-                    .spin-element { animation: spin-slow 25s linear infinite; transform-origin: center; }
-                    
-                    .glowing-path {
-                        stroke-dasharray: 1000;
-                        stroke-dashoffset: 1000;
-                        animation: draw-line 8s linear infinite alternate;
                     }
                 `}
             </style>
 
-            {/* --- ANIMATED BACKGROUND ELEMENTS --- */}
-            
-            {/* Base Radial Gradient */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-[#0a0a0f] to-[#06060a]"></div>
-
-            {/* Animated Glowing Light Lines (SVG) */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-60" preserveAspectRatio="none">
-                <defs>
-                    <linearGradient id="indigo-glow" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#4ade80" stopOpacity="0" />
-                        <stop offset="50%" stopColor="#191838" stopOpacity="0.8" />
-                        <stop offset="100%" stopColor="#4ade80" stopOpacity="0" />
-                    </linearGradient>
-                    <linearGradient id="purple-glow" x1="100%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#191838" stopOpacity="0" />
-                        <stop offset="50%" stopColor="#4ade80" stopOpacity="0.8" />
-                        <stop offset="100%" stopColor="#191838" stopOpacity="0" />
-                    </linearGradient>
-                </defs>
-                {/* Curved swishes mimicking cinematic light leaks */}
-                <path d="M-100,800 C300,600 500,100 1200,300" fill="none" stroke="url(#indigo-glow)" strokeWidth="8" className="glowing-path" style={{ filter: 'blur(4px)' }} />
-                <path d="M1200,800 C800,900 300,400 -100,200" fill="none" stroke="url(#purple-glow)" strokeWidth="6" className="glowing-path" style={{ animationDelay: '-4s', filter: 'blur(6px)' }} />
-                <path d="M-200,500 C400,300 800,800 1400,400" fill="none" stroke="url(#indigo-glow)" strokeWidth="3" className="glowing-path" style={{ animationDelay: '-2s' }} />
-            </svg>
-
-            {/* Floating Film Reels (Pure SVG) */}
-            <div className="absolute top-10 right-[10%] opacity-20 film-reel-1 pointer-events-none">
-                <svg width="180" height="180" viewBox="0 0 100 100" className="spin-element text-indigo-300">
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" strokeDasharray="12 6" />
-                    <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="2" />
-                    <circle cx="50" cy="50" r="10" fill="currentColor" />
-                    <line x1="50" y1="20" x2="50" y2="80" stroke="currentColor" strokeWidth="2" />
-                    <line x1="20" y1="50" x2="80" y2="50" stroke="currentColor" strokeWidth="2" />
-                    <line x1="29" y1="29" x2="71" y2="71" stroke="currentColor" strokeWidth="2" />
-                    <line x1="29" y1="71" x2="71" y2="29" stroke="currentColor" strokeWidth="2" />
-                </svg>
+            {/* ═══ LANGUAGE TOGGLE ═══ */}
+            <div className="sl-lang-toggle">
+                <LanguageToggleButton variant="topbar" />
             </div>
 
-            <div className="absolute bottom-10 left-[5%] opacity-20 film-reel-2 pointer-events-none">
-                <svg width="220" height="220" viewBox="0 0 100 100" className="spin-element text-indigo-200" style={{ animationDirection: 'reverse', animationDuration: '35s' }}>
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="10" strokeDasharray="15 5" />
-                    <circle cx="50" cy="50" r="28" fill="none" stroke="currentColor" strokeWidth="3" />
-                    <circle cx="50" cy="50" r="12" fill="none" stroke="currentColor" strokeWidth="4" />
-                    <path d="M50 22 L50 78 M22 50 L78 50 M30 30 L70 70 M30 70 L70 30" stroke="currentColor" strokeWidth="3" />
-                </svg>
-            </div>
+            {/* ═══ HERO SECTION ═══ */}
+            <div className="sl-hero">
+                <div className="sl-orb-2" />
 
-            {/* Glowing Particles/Dust */}
-            <div className="absolute top-[20%] left-[20%] w-2 h-2 bg-indigo-400 rounded-full blur-[2px]" style={{ animation: 'pulse-glow 3s infinite' }}></div>
-            <div className="absolute top-[60%] right-[25%] w-3 h-3 bg-indigo-300 rounded-full blur-[2px]" style={{ animation: 'pulse-glow 4s infinite 1s' }}></div>
-            <div className="absolute bottom-[30%] left-[30%] w-1.5 h-1.5 bg-indigo-200 rounded-full blur-[1px]" style={{ animation: 'pulse-glow 2.5s infinite 2s' }}></div>
-
-
-            {/* --- FOREGROUND LOGIN CARD --- */}
-            <div className="relative z-10 w-full max-w-[420px] bg-white/5 rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.5)] border border-white/10 p-8 sm:p-10 animate-in fade-in slide-in-from-bottom-4 duration-700 backdrop-blur-xl">
-                
-                {/* Top Icon & Headers */}
-                <div className="flex flex-col items-center mb-8 relative">
-                    {/* Top Icon / Logo Section */}
-    
-   
-    {/* Image Container */}
-    <div className="relative w-20 h-20 bg-white/5 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-900/20 mb-6 p-2 border border-white/10 group hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
-        <img 
-            src={instituteLogo} 
-            alt="Institute Logo" 
-            className="w-full h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-300" 
-        />
-    </div>
-
-                    <h1 className="text-2xl font-bold text-white tracking-tight mb-2">
-                        {t('Institute Erp')}
-                    </h1>
-                    <p className="text-white/50 text-sm font-medium">
-                        {t('Secure login for students only.')}
-                    </p>
+                {/* Logo */}
+                <div className="sl-logo-wrap">
+                    <div className="sl-logo-glow" />
+                    <div className="sl-logo-box">
+                        <img src={instituteLogo} alt="Institute Logo" />
+                    </div>
                 </div>
+
+                {/* Title */}
+                <h1 className="sl-hero-title">{t('De Facto Institute Erp')}</h1>
+                <p className="sl-hero-sub">{t('Secure login for students only.')}</p>
+            </div>
+
+            {/* ═══ FORM CARD ═══ */}
+            <div className="sl-card">
 
                 {/* Error Banner */}
                 {formError && (
-                    <div className="mb-6 bg-red-500/100/10 border border-red-500/30 text-red-300 p-3 rounded-xl flex items-center gap-3 animate-in fade-in zoom-in duration-300" role="alert">
-                        <AlertCircle size={18} className="shrink-0" />
-                        <p className="text-sm font-medium">{formError}</p>
+                    <div className="sl-error" role="alert">
+                        <AlertCircle size={18} className="sl-error-icon" />
+                        <div>
+                            <p className="sl-error-title">{formError}</p>
+                            <p className="sl-error-hint">{t('Please check your credentials and try again.')}</p>
+                        </div>
                     </div>
                 )}
 
                 {/* Login Form */}
-                <form onSubmit={handleLogin} className="space-y-5" noValidate>
-                    
+                <form onSubmit={handleLogin} className="sl-form" noValidate>
+
                     {/* Student ID Field */}
-                    <div className="space-y-2">
-                        <label htmlFor="student-roll" className="block text-sm font-semibold text-white/70">
+                    <div>
+                        <label htmlFor="student-roll" className="sl-field-label">
                             {t('Student ID')}
                         </label>
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                <Mail size={18} className={`transition-colors ${shouldShowFieldError('rollNo') ? 'text-red-400' : 'text-white/30 group-focus-within:text-[#191838]'}`} />
-                            </div>
+                        <div className={`sl-input-wrap ${shouldShowFieldError('rollNo') ? 'sl-has-error' : ''}`}>
+                            <Mail size={18} className="sl-input-icon" />
                             <input
                                 id="student-roll"
                                 type="text"
                                 value={rollNo}
                                 onChange={(e) => handleFieldChange('rollNo', e.target.value)}
                                 onBlur={() => setTouched((prev) => ({ ...prev, rollNo: true }))}
-                                placeholder={t('Student ID')}
+                                placeholder={t('Enter your student ID or email')}
                                 autoComplete="username"
-                                className={`w-full pl-10 pr-4 py-3 bg-white/5 border ${shouldShowFieldError('rollNo') ? 'border-red-400/50 focus:border-red-400 focus:ring-red-400/20' : 'border-white/10 focus:border-[#191838] focus:ring-[#191838]/15'} rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-4 transition-all`}
+                                className={`sl-input ${shouldShowFieldError('rollNo') ? 'sl-input-error' : ''}`}
                             />
                         </div>
                         {shouldShowFieldError('rollNo') && (
-                            <p className="text-xs text-red-500 font-medium">{fieldErrors.rollNo}</p>
+                            <span className="sl-field-error">{fieldErrors.rollNo}</span>
                         )}
                     </div>
 
                     {/* Password Field */}
-                    <div className="space-y-2">
-                        <label htmlFor="student-password" className="block text-sm font-semibold text-white/70">
+                    <div>
+                        <label htmlFor="student-password" className="sl-field-label">
                             {t('Password')}
                         </label>
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                <Lock size={18} className={`transition-colors ${shouldShowFieldError('password') ? 'text-red-400' : 'text-white/30 group-focus-within:text-[#191838]'}`} />
-                            </div>
+                        <div className={`sl-input-wrap ${shouldShowFieldError('password') ? 'sl-has-error' : ''}`}>
+                            <Lock size={18} className="sl-input-icon" />
                             <input
                                 id="student-password"
                                 type={showPassword ? 'text' : 'password'}
@@ -302,45 +582,40 @@ const StudentLogin = () => {
                                 onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
                                 placeholder={t('Enter your password')}
                                 autoComplete="current-password"
-                                className={`w-full pl-10 pr-12 py-3 bg-white/5 border ${shouldShowFieldError('password') ? 'border-red-400/50 focus:border-red-400 focus:ring-red-400/20' : 'border-white/10 focus:border-[#191838] focus:ring-[#191838]/15'} rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-4 transition-all`}
+                                className={`sl-input sl-input-pw ${shouldShowFieldError('password') ? 'sl-input-error' : ''}`}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword((prev) => !prev)}
-                                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-white/30 hover:text-[#191838] transition-colors"
+                                className="sl-eye-btn"
                                 aria-label={showPassword ? t('Hide password') : t('Show password')}
                             >
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
                         {shouldShowFieldError('password') && (
-                            <p className="text-xs text-red-500 font-medium">{fieldErrors.password}</p>
+                            <span className="sl-field-error">{fieldErrors.password}</span>
                         )}
                     </div>
 
                     {/* Submit Button */}
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full mt-8 py-3.5 bg-[#191838] hover:bg-[#12112a] text-white rounded-xl font-semibold text-[15px] flex items-center justify-center gap-2 shadow-[0_4px_14px_0_rgba(33,196,93,0.35)] hover:shadow-[0_6px_20px_rgba(33,196,93,0.28)] hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed group overflow-hidden relative"
-                    >
-                        {/* Button Shimmer Effect */}
-                        <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:animate-[shimmer_1.5s_infinite]"></div>
-                        
+                    <button type="submit" disabled={loading} className="sl-submit">
                         {loading ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin relative z-10" />
+                            <div className="sl-spinner" />
                         ) : (
                             <>
-                                <span className="relative z-10">{t('Secure Login Access')}</span>
-                                <ArrowRight size={18} className="relative z-10 group-hover:translate-x-1 transition-transform" />
+                                <span>{t('Secure Login Access')}</span>
+                                <ArrowRight size={18} className="sl-btn-arrow" />
                             </>
                         )}
                     </button>
-                    
-                    {/* Add shimmer keyframe to the style block */}
-                    <style>{`@keyframes shimmer { 100% { transform: translateX(100%); } }`}</style>
                 </form>
 
+                {/* Footer */}
+                <div className="sl-footer">
+                    <ShieldCheck size={14} className="sl-footer-icon" />
+                    <span className="sl-footer-text">{t('Secured with 256-bit encryption')}</span>
+                </div>
             </div>
         </div>
     );
