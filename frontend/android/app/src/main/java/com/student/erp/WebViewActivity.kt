@@ -309,7 +309,16 @@ class WebViewActivity : AppCompatActivity() {
                 return originalFetch(input, Object.assign({}, init || {}, { headers: headers }));
               };
               var originalOpen = XMLHttpRequest.prototype.open;
+                            var originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
               var originalSend = XMLHttpRequest.prototype.send;
+                            XMLHttpRequest.prototype.setRequestHeader = function(name, value) {
+                                var key = String(name || '').toLowerCase();
+                                if (!this.__nativeAuthHeaders) {
+                                    this.__nativeAuthHeaders = {};
+                                }
+                                this.__nativeAuthHeaders[key] = true;
+                                return originalSetRequestHeader.apply(this, arguments);
+                            };
               XMLHttpRequest.prototype.open = function(method, url) {
                 this.__nativeAuthUrl = url;
                 return originalOpen.apply(this, arguments);
@@ -317,8 +326,13 @@ class WebViewActivity : AppCompatActivity() {
               XMLHttpRequest.prototype.send = function(body) {
                 if (this.__nativeAuthUrl && shouldAttach(this.__nativeAuthUrl) && currentToken()) {
                   try {
-                    this.setRequestHeader('Authorization', 'Bearer ' + currentToken());
-                    this.setRequestHeader('X-Native-App', 'android');
+                                        var headers = this.__nativeAuthHeaders || {};
+                                        if (!headers['authorization']) {
+                                            this.setRequestHeader('Authorization', 'Bearer ' + currentToken());
+                                        }
+                                        if (!headers['x-native-app']) {
+                                            this.setRequestHeader('X-Native-App', 'android');
+                                        }
                   } catch (error) {}
                 }
                 return originalSend.call(this, body);
